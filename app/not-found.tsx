@@ -1,0 +1,25 @@
+import { BlogLink, HomeLink, StatusPanel } from "@/components/feedback/status-panel";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { SiteHeader } from "@/components/layout/site-header";
+
+export default function RootNotFound() {
+  return (
+    <div className="flex min-h-screen flex-col bg-editorial-white">
+      <SiteHeader />
+      <main className="flex-1">
+        <StatusPanel
+          actions={
+            <>
+              <BlogLink />
+              <HomeLink />
+            </>
+          }
+          description="The route you requested is not available on myClawTeam Official Blogs."
+          eyebrow="Not found"
+          title="This page is not here."
+        />
+      </main>
+      <SiteFooter />
+    </div>
+  );
+}
