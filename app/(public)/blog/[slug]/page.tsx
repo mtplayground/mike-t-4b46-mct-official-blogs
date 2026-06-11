@@ -23,11 +23,58 @@ type PostPageProps = {
   }>;
 };
 
-function getPostBodyParagraphs(body: string) {
-  return body
+type BodyBlock =
+  | {
+      alt: string;
+      kind: "image";
+      src: string;
+    }
+  | {
+      kind: "paragraph";
+      text: string;
+    };
+
+function parseStorageImage(paragraph: string) {
+  const match = paragraph.match(/^!\[([^\]]*)\]\(storage:([^)]+)\)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    alt: match[1],
+    key: match[2],
+  };
+}
+
+async function getPostBodyBlocks(body: string): Promise<BodyBlock[]> {
+  const paragraphs = body
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
+
+  return Promise.all(
+    paragraphs.map(async (paragraph) => {
+      const storageImage = parseStorageImage(paragraph);
+
+      if (storageImage) {
+        try {
+          return {
+            alt: storageImage.alt,
+            kind: "image",
+            src: await getSignedPostImageUrl(storageImage.key),
+          };
+        } catch (error) {
+          console.error("Failed to sign inline post image", error);
+        }
+      }
+
+      return {
+        kind: "paragraph",
+        text: paragraph,
+      };
+    }),
+  );
 }
 
 async function getPublishedPost(slug: string) {
@@ -74,7 +121,7 @@ export default async function PostPage({ params }: PostPageProps) {
   const coverImageUrl = post.coverImageKey
     ? await getSignedPostImageUrl(post.coverImageKey)
     : fallbackCoverImage;
-  const paragraphs = getPostBodyParagraphs(post.body);
+  const bodyBlocks = await getPostBodyBlocks(post.body);
 
   return (
     <main>
@@ -118,11 +165,21 @@ export default async function PostPage({ params }: PostPageProps) {
             </figure>
 
             <div className="mx-auto grid w-full max-w-3xl gap-7">
-              {paragraphs.map((paragraph) => (
-                <p className="text-[1.15rem] leading-8 text-editorial-ink" key={paragraph}>
-                  {paragraph}
-                </p>
-              ))}
+              {bodyBlocks.map((block) =>
+                block.kind === "image" ? (
+                  <figure
+                    className="overflow-hidden rounded-card border border-editorial-line bg-editorial-cream shadow-editorial"
+                    key={block.src}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Signed private inline image URLs are resolved at render time. */}
+                    <img alt={block.alt} className="w-full object-cover" src={block.src} />
+                  </figure>
+                ) : (
+                  <p className="text-[1.15rem] leading-8 text-editorial-ink" key={block.text}>
+                    {block.text}
+                  </p>
+                ),
+              )}
             </div>
           </div>
         </section>

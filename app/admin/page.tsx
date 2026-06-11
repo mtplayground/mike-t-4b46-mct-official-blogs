@@ -131,6 +131,12 @@ function PostRow({ post }: { post: AdminPost }) {
         </dl>
       </div>
       <div className="grid content-start gap-3">
+        <Link
+          className="inline-flex justify-center rounded-button border border-editorial-line bg-editorial-white px-4 py-2 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
+          href={`/admin/posts/${post.id}/edit`}
+        >
+          Edit
+        </Link>
         <PublishControls post={post} />
         {post.status === PostStatus.PUBLISHED ? (
           <Link
@@ -182,6 +188,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </button>
           </form>
         </div>
+
+        <Link className="editorial-button" href="/admin/posts/new">
+          New post
+        </Link>
 
         {params?.notice ? (
           <p className="rounded-card border border-editorial-line bg-editorial-white px-5 py-4 text-sm font-bold text-editorial-ink">
