@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { categoryUrlSlugByEnum } from "../_components/blog-listing";
 import { prisma } from "@/lib/db/prisma";
+import { buildPageMetadata } from "@/lib/metadata";
 import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
 
 export const revalidate = 300;
@@ -108,6 +109,26 @@ export async function generateStaticParams() {
   return posts.map((post) => ({
     slug: post.slug,
   }));
+}
+
+export async function generateMetadata({ params }: PostPageProps) {
+  const { slug } = await params;
+  const post = await getPublishedPost(slug);
+
+  if (!post) {
+    return buildPageMetadata({
+      title: "Post not found",
+      description: "This post is not available on the myClawTeam official blog.",
+      path: `/blog/${slug}`,
+    });
+  }
+
+  return buildPageMetadata({
+    title: post.title,
+    description: post.excerpt,
+    path: `/blog/${post.slug}`,
+    type: "article",
+  });
 }
 
 export default async function PostPage({ params }: PostPageProps) {

@@ -12,6 +12,12 @@ export const categoryUrlSlugByEnum = {
   [CategorySlug.ANNOUNCEMENTS]: "announcements",
 } as const satisfies Record<CategorySlug, string>;
 
+export const categoryLabelByEnum = {
+  [CategorySlug.THOUGHTS]: "Thoughts",
+  [CategorySlug.PRODUCT_PROGRESS]: "Product Progress",
+  [CategorySlug.ANNOUNCEMENTS]: "Announcements",
+} as const satisfies Record<CategorySlug, string>;
+
 const categoryOrder = [
   CategorySlug.THOUGHTS,
   CategorySlug.PRODUCT_PROGRESS,
