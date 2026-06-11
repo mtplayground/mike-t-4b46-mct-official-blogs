@@ -48,3 +48,11 @@ model Post {
   @@index([status, publishedAt])
   @@map("posts")
 }
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique @db.VarChar(320)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("subscribers")
+}
