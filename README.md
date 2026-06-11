@@ -11,6 +11,9 @@ npm run dev
 
 The development server listens on `0.0.0.0:8080`.
 
+Copy `.env.example` to a local env file and replace example values before running commands that
+touch the database, admin area, or object storage.
+
 ## Scripts
 
 - `npm run dev` starts the local Next.js server.
@@ -48,3 +51,9 @@ Image upload helpers use the pre-provisioned S3-compatible object storage bucket
 `OBJECT_STORAGE_*` environment variables. Uploaded post images are stored under the required tenant
 prefix plus `post-images/<year>/<month>/...`; database records should keep the returned relative
 object key and call the signed URL helper when rendering private bucket assets.
+
+## Environment
+
+Required server env vars are documented in `.env.example` and validated by `lib/env/server.ts`:
+`SELF_URL`, `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and the
+`OBJECT_STORAGE_*` settings used by the storage client.
