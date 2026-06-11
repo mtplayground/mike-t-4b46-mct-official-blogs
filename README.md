@@ -18,3 +18,9 @@ The development server listens on `0.0.0.0:8080`.
 - `npm run start` serves the production build on `${PORT:-8080}`.
 - `npm run lint` runs ESLint.
 - `npm run format` checks formatting with Prettier.
+
+## Styling
+
+Tailwind CSS is configured with editorial design tokens for cream/white section bands, the
+`#E8472B` red accent, dark feature-card surfaces, heading/body type scales, and rounded red button
+components.
