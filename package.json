@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "test": "node --import tsx --test tests/*.test.ts",
     "e2e": "playwright test",
+    "env:check": "tsx scripts/check-env.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "postinstall": "prisma generate",
