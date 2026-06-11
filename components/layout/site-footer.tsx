@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { NewsletterSignupForm } from "@/components/newsletter/newsletter-signup-form";
+
 const footerLinks = [
   { href: "/", label: "Home" },
   { href: "/blog", label: "Blog" },
@@ -11,7 +13,7 @@ const categoryLabels = ["Thoughts", "Product Progress", "Announcements"];
 export function SiteFooter() {
   return (
     <footer className="bg-editorial-dark-card text-editorial-white">
-      <div className="page-shell grid gap-10 py-12 md:grid-cols-[1.4fr_1fr_1fr]">
+      <div className="page-shell grid gap-10 py-12 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.35fr]">
         <div className="stack">
           <Link
             aria-label="myClawTeam Official Blogs home"
@@ -57,6 +59,18 @@ export function SiteFooter() {
               <li key={label}>{label}</li>
             ))}
           </ul>
+        </div>
+
+        <div className="stack gap-4">
+          <div className="grid gap-3">
+            <h2 className="font-sans text-sm font-bold uppercase tracking-[0.08em] text-editorial-white">
+              Stay in the Loop
+            </h2>
+            <p className="text-sm leading-6 text-editorial-dark-card-muted">
+              Get new posts and official myClawTeam updates in your inbox.
+            </p>
+          </div>
+          <NewsletterSignupForm />
         </div>
       </div>
       <div className="border-t border-white/10">
