@@ -6,6 +6,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getObjectStorageEnv, type ObjectStorageEnv } from "../env/server";
 
 const POST_IMAGE_PREFIX = "post-images";
 const MAX_POST_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -20,15 +21,7 @@ const IMAGE_CONTENT_TYPES = {
 
 export type SupportedImageContentType = keyof typeof IMAGE_CONTENT_TYPES;
 
-export type ObjectStorageConfig = {
-  accessKeyId: string;
-  secretAccessKey: string;
-  bucket: string;
-  prefix: string;
-  endpoint: string;
-  region: string;
-  forcePathStyle: boolean;
-};
+export type ObjectStorageConfig = ObjectStorageEnv;
 
 export type UploadPostImageInput = {
   body: ArrayBuffer | Uint8Array | Buffer;
@@ -46,43 +39,8 @@ export type UploadedPostImage = {
 let cachedConfig: ObjectStorageConfig | undefined;
 let cachedClient: S3Client | undefined;
 
-function requiredEnv(name: string) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`${name} is required for object storage.`);
-  }
-
-  return value;
-}
-
-function parseForcePathStyle(value: string) {
-  if (value === "true") {
-    return true;
-  }
-
-  if (value === "false") {
-    return false;
-  }
-
-  throw new Error("OBJECT_STORAGE_FORCE_PATH_STYLE must be either true or false.");
-}
-
 export function getObjectStorageConfig(): ObjectStorageConfig {
-  cachedConfig ??= {
-    accessKeyId: requiredEnv("OBJECT_STORAGE_ACCESS_KEY_ID"),
-    secretAccessKey: requiredEnv("OBJECT_STORAGE_SECRET_ACCESS_KEY"),
-    bucket: requiredEnv("OBJECT_STORAGE_BUCKET"),
-    prefix: requiredEnv("OBJECT_STORAGE_PREFIX"),
-    endpoint: requiredEnv("OBJECT_STORAGE_ENDPOINT"),
-    region: requiredEnv("OBJECT_STORAGE_REGION"),
-    forcePathStyle: parseForcePathStyle(requiredEnv("OBJECT_STORAGE_FORCE_PATH_STYLE")),
-  };
-
-  if (!cachedConfig.prefix.endsWith("/")) {
-    throw new Error("OBJECT_STORAGE_PREFIX must include its trailing slash.");
-  }
-
+  cachedConfig ??= getObjectStorageEnv();
   return cachedConfig;
 }
 

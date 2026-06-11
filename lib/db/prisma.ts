@@ -1,20 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import { getDatabaseUrl } from "../env/server";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
 
-function requireDatabaseUrl() {
-  const databaseUrl = process.env.DATABASE_URL;
-
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is required before creating a Prisma client.");
-  }
-
-  return databaseUrl;
-}
-
-requireDatabaseUrl();
+getDatabaseUrl();
 
 export const prisma =
   globalForPrisma.prisma ??
