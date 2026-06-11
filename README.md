@@ -32,6 +32,8 @@ Tailwind CSS is configured with editorial design tokens for cream/white section 
 `#E8472B` red accent, dark feature-card surfaces, heading/body type scales, and rounded red button
 components.
 
+The public route group uses shared header and footer components from `components/layout`.
+
 ## Database
 
 Prisma is configured for PostgreSQL through `DATABASE_URL`. The CLI workflow is defined in
