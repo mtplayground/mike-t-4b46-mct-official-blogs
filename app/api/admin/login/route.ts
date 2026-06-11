@@ -21,10 +21,18 @@ function safeAdminNext(value: FormDataEntryValue | null) {
 }
 
 function redirectToLogin(request: Request) {
-  const url = new URL("/admin/login", request.url);
+  const url = new URL("/admin/login", getRequestOrigin(request));
   url.searchParams.set("error", "invalid");
 
   return NextResponse.redirect(url);
+}
+
+function getRequestOrigin(request: Request) {
+  const host = request.headers.get("host");
+  const forwardedProtocol = request.headers.get("x-forwarded-proto");
+  const protocol = forwardedProtocol ?? new URL(request.url).protocol.replace(/:$/u, "");
+
+  return host ? `${protocol}://${host}` : request.url;
 }
 
 export async function POST(request: Request) {
@@ -43,7 +51,7 @@ export async function POST(request: Request) {
     return redirectToLogin(request);
   }
 
-  const response = NextResponse.redirect(new URL(nextPath, request.url));
+  const response = NextResponse.redirect(new URL(nextPath, getRequestOrigin(request)));
   const session = await createAdminSession(credentials.password);
 
   response.cookies.set({

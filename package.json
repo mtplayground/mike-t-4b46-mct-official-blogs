@@ -9,6 +9,7 @@
     "start": "next start -H 0.0.0.0 -p ${PORT:-8080}",
     "lint": "eslint .",
     "test": "node --import tsx --test tests/*.test.ts",
+    "e2e": "playwright test",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "postinstall": "prisma generate",
@@ -41,6 +42,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
