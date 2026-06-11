@@ -2,8 +2,16 @@ import { PostStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { prisma } from "@/lib/db/prisma";
+import { buildPageMetadata } from "@/lib/metadata";
 
 export const revalidate = 300;
+
+export const metadata = buildPageMetadata({
+  title: "Practical AI engineering, written in the open",
+  description:
+    "Field notes, product progress, and announcements from the team building dependable AI-powered software.",
+  path: "/",
+});
 
 const dateFormatter = new Intl.DateTimeFormat("en", {
   day: "numeric",
