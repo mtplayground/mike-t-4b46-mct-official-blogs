@@ -1,0 +1,2 @@
+-- Initial migration baseline for the myClawTeam official blog PostgreSQL database.
+-- Content tables are introduced by later issue-specific migrations.
