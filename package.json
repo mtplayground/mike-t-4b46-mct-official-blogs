@@ -32,6 +32,8 @@
     "node": ">=20.9.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1066.0",
+    "@aws-sdk/s3-request-presigner": "^3.1066.0",
     "@prisma/client": "^6.19.3",
     "next": "^16.2.9",
     "react": "^19.2.7",

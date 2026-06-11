@@ -41,3 +41,10 @@ npm run db:generate
 npm run db:migrate:deploy
 npm run db:seed
 ```
+
+## Object Storage
+
+Image upload helpers use the pre-provisioned S3-compatible object storage bucket through the
+`OBJECT_STORAGE_*` environment variables. Uploaded post images are stored under the required tenant
+prefix plus `post-images/<year>/<month>/...`; database records should keep the returned relative
+object key and call the signed URL helper when rendering private bucket assets.
