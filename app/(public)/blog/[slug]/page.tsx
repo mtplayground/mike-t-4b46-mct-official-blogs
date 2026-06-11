@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { categoryUrlSlugByEnum } from "../_components/blog-listing";
 import { prisma } from "@/lib/db/prisma";
-import { buildPageMetadata } from "@/lib/metadata";
+import { absoluteSiteUrl, buildPageMetadata, siteName } from "@/lib/metadata";
 import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
 
 export const revalidate = 300;
@@ -93,6 +93,43 @@ async function getPublishedPost(slug: string) {
   });
 }
 
+function serializeJsonLd(value: unknown) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+function buildArticleJsonLd(post: NonNullable<Awaited<ReturnType<typeof getPublishedPost>>>) {
+  const canonicalUrl = absoluteSiteUrl(`/blog/${post.slug}`);
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.excerpt,
+    datePublished: post.publishedAt?.toISOString(),
+    dateModified: post.updatedAt.toISOString(),
+    articleSection: post.category.name,
+    image: [absoluteSiteUrl(fallbackCoverImage)],
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": canonicalUrl,
+    },
+    author: {
+      "@type": "Organization",
+      name: "myClawTeam",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "myClawTeam",
+      url: absoluteSiteUrl("/"),
+    },
+    isPartOf: {
+      "@type": "Blog",
+      name: siteName,
+      url: absoluteSiteUrl("/blog"),
+    },
+  };
+}
+
 export async function generateStaticParams() {
   const posts = await prisma.post.findMany({
     select: {
@@ -143,9 +180,16 @@ export default async function PostPage({ params }: PostPageProps) {
     ? await getSignedPostImageUrl(post.coverImageKey)
     : fallbackCoverImage;
   const bodyBlocks = await getPostBodyBlocks(post.body);
+  const articleJsonLd = buildArticleJsonLd(post);
 
   return (
     <main>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(articleJsonLd),
+        }}
+        type="application/ld+json"
+      />
       <article>
         <section className="section section-cream">
           <div className="page-shell grid gap-10">
