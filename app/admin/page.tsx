@@ -189,9 +189,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </form>
         </div>
 
-        <Link className="editorial-button" href="/admin/posts/new">
-          New post
-        </Link>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link className="editorial-button" href="/admin/posts/new">
+            New post
+          </Link>
+          <Link
+            className="inline-flex w-fit justify-center rounded-button border border-editorial-line bg-editorial-white px-6 py-3 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
+            href="/admin/subscribers"
+          >
+            Subscribers
+          </Link>
+        </div>
 
         {params?.notice ? (
           <p className="rounded-card border border-editorial-line bg-editorial-white px-5 py-4 text-sm font-bold text-editorial-ink">
