@@ -1,7 +1,8 @@
-import { CategorySlug, PostStatus, type Prisma } from "@prisma/client";
+import { CategorySlug } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { publishedPostWhere } from "@/lib/content/posts";
 import { prisma } from "@/lib/db/prisma";
 
 export const POSTS_PER_PAGE = 6;
@@ -59,22 +60,6 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return Array.from({ length: lastPage - firstPage + 1 }, (_, index) => firstPage + index);
 }
 
-function getPostWhere(activeCategory: CategorySlug | undefined): Prisma.PostWhereInput {
-  return {
-    publishedAt: {
-      not: null,
-    },
-    status: PostStatus.PUBLISHED,
-    ...(activeCategory
-      ? {
-          category: {
-            slug: activeCategory,
-          },
-        }
-      : {}),
-  };
-}
-
 export function parseCategoryUrlSlug(value: string): CategorySlug | null {
   const categorySlug = Object.entries(categoryUrlSlugByEnum).find(
     ([, urlSlug]) => urlSlug === value,
@@ -91,7 +76,7 @@ export function parsePageParam(value: string) {
 
 export async function getAllPostPageStaticParams() {
   const totalPosts = await prisma.post.count({
-    where: getPostWhere(undefined),
+    where: publishedPostWhere(undefined),
   });
   const totalPages = Math.max(1, Math.ceil(totalPosts / POSTS_PER_PAGE));
 
@@ -110,7 +95,7 @@ export async function getCategoryPageStaticParams() {
   const params = await Promise.all(
     Object.entries(categoryUrlSlugByEnum).map(async ([slug, category]) => {
       const totalPosts = await prisma.post.count({
-        where: getPostWhere(slug as CategorySlug),
+        where: publishedPostWhere(slug as CategorySlug),
       });
       const totalPages = Math.max(1, Math.ceil(totalPosts / POSTS_PER_PAGE));
 
@@ -125,7 +110,7 @@ export async function getCategoryPageStaticParams() {
 }
 
 export async function BlogListing({ activeCategory, currentPage = 1 }: BlogListingProps) {
-  const where = getPostWhere(activeCategory);
+  const where = publishedPostWhere(activeCategory);
   const [categories, totalPosts] = await Promise.all([
     prisma.category.findMany(),
     prisma.post.count({ where }),
