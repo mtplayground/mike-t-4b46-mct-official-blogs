@@ -1,0 +1,50 @@
+# myClawTeam Official Blogs Architecture Plan
+
+## Product Context
+
+Build the myClawTeam official blog as a Next.js App Router + TypeScript application. Public pages use an editorial visual system with cream/white bands, red accents around `#E8472B`, dark feature-card surfaces, rounded red CTAs, uppercase red category labels, and the header slogan "Your Professional AI Engineering Team".
+
+## Module Structure
+
+- `app/(public)/`: public marketing/blog routes including home, post listing, category-filtered views, and dynamic post pages.
+- `app/admin/`: protected admin routes for login, post dashboard, post create/edit, and subscribers.
+- `app/api/` or route handlers colocated under route segments: newsletter signup and upload endpoints when server actions are not sufficient.
+- `components/layout/`: shared header, footer, navigation, newsletter footer form shell, page bands, and editorial containers.
+- `components/ui/`: reusable buttons, inputs, form messages, pagination, status badges, confirmation dialog, loading/error states.
+- `components/posts/`: post cards, category filters, post metadata, editor form, Markdown/rich content rendering.
+- `lib/db/`: Prisma client singleton, model query helpers, seed utilities.
+- `lib/content/`: slug generation, publish/draft visibility rules, pagination helpers, metadata helpers, JSON-LD builders.
+- `lib/auth/`: env credential validation, session cookie creation/verification, admin middleware helpers.
+- `lib/storage/`: S3-compatible object storage client and image upload helper.
+- `lib/env/`: typed environment parsing for database, storage, admin auth, and site URL.
+- `prisma/`: schema, migrations, and seed script.
+- `tests/unit/`: auth, content visibility, subscriber validation/dedupe.
+- `tests/e2e/`: publish-to-public and newsletter flows.
+
+## Shared Types and Data Model
+
+- Prisma is the source of truth for `Post`, `Category`, and `Subscriber`.
+- `Category`: fixed seed data for `Thoughts`, `Product Progress`, and `Announcements`; expose slugs for filtering and URLs.
+- `Post`: title, slug, excerpt, Markdown/rich body, cover image URL/key, status enum (`draft`, `published`), nullable published date, category relation, timestamps.
+- `Subscriber`: unique email plus created date.
+- Derived app types should come from Prisma payloads or small DTOs in `lib/content/types.ts` when route-specific projections are needed.
+
+## Dependencies Between Issues
+
+- Foundation: #1 creates the Next.js/TypeScript/App Router skeleton; #2, #3, #4, and #5 build on that foundation.
+- Data layer: #3 enables Prisma/PostgreSQL; #6 and #7 define the core models; #8 seeds categories and sample posts.
+- Public surface: #9 establishes layout; #10, #11, #12, and #13 consume the design system and data helpers.
+- Admin surface: #14 protects `/admin`; #15 and #17 use database CRUD; #16 also depends on storage uploads.
+- SEO and discovery: #18 and #19 build on published post queries and stable public routes.
+- Quality and deployment: #20 covers isolated business logic; #21 covers browser workflows; #22 adds boundaries and self-hosted deployment documentation.
+
+## Key Design Decisions
+
+- Use server components for read-heavy public pages, Prisma query helpers for published-only filtering, and ISR/revalidation for home, listing, and post pages.
+- Keep admin mutations in server actions where practical; revalidate affected public paths after publish, unpublish, edit, delete, or create.
+- Store post bodies as Markdown initially for portability and simple rendering; keep image upload helpers independent so inline and cover uploads share validation.
+- Use cookie-based admin sessions signed with an env secret; compare credentials from env vars only.
+- Centralize env parsing so missing deployment variables fail early and `.env.example` stays aligned with runtime requirements.
+- Treat object storage as S3-compatible and store public URL plus object key where deletion or replacement may be needed later.
+- Keep validation close to use cases: subscriber email normalization/dedupe, slug uniqueness, publish-date assignment, and draft visibility live in shared library functions covered by unit tests.
+- Do not introduce issue-creation automation; all GitHub issues already exist and should be implemented one at a time in future sessions.
