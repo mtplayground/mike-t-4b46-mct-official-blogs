@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { CategorySlug, PostStatus } from "@prisma/client";
 
 import { prisma } from "../lib/db/prisma";
+import { deletePostImage } from "../lib/storage/object-storage";
 
 test.describe.configure({ mode: "serial" });
 
@@ -11,9 +12,15 @@ const slug = `e2e-published-post-${uniqueId}`;
 const excerpt = "A browser-created post that proves the admin publishing flow reaches readers.";
 const body = [
   "This post was created through the admin UI by the end-to-end test.",
-  "It should appear on the public listing and its individual public page.",
+  "It should appear in the homepage hero, card grid, and individual public page.",
 ].join("\n\n");
+const authorName = "myClawTeam E2E Author";
+const authorIntro = "An end-to-end test author profile used to verify the article detail block.";
 const subscriberEmail = `e2e-${uniqueId}@example.com`;
+const tinyPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+  "base64",
+);
 
 test.beforeAll(async () => {
   await prisma.category.upsert({
@@ -45,7 +52,19 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
+  const post = await prisma.post.findUnique({
+    select: {
+      authorAvatarKey: true,
+      coverImageKey: true,
+    },
+    where: {
+      slug,
+    },
+  });
+
   await Promise.allSettled([
+    ...(post?.coverImageKey ? [deletePostImage(post.coverImageKey)] : []),
+    ...(post?.authorAvatarKey ? [deletePostImage(post.authorAvatarKey)] : []),
     prisma.post.deleteMany({
       where: {
         slug,
@@ -60,7 +79,7 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test("admin publishes a post that is visible publicly, and newsletter signup persists", async ({
+test("admin publishes a post that drives the homepage, detail page, and newsletter flow", async ({
   page,
 }, testInfo) => {
   const adminCredentials = testInfo.config.metadata as {
@@ -90,6 +109,19 @@ test("admin publishes a post that is visible publicly, and newsletter signup per
   await page.getByLabel("Excerpt").fill(excerpt);
   await page.getByLabel("Category").selectOption({ label: "Thoughts" });
   await page.getByLabel("Published").check();
+  await page.getByLabel("Featured article").check();
+  await page.getByLabel("Cover image").setInputFiles({
+    buffer: tinyPng,
+    mimeType: "image/png",
+    name: "cover.png",
+  });
+  await page.getByLabel("Author name").fill(authorName);
+  await page.getByLabel("Author intro").fill(authorIntro);
+  await page.getByLabel("Author avatar").setInputFiles({
+    buffer: tinyPng,
+    mimeType: "image/png",
+    name: "avatar.png",
+  });
   await page.getByLabel("Markdown body").fill(body);
   await page.getByRole("button", { name: "Create post" }).click();
 
@@ -100,6 +132,11 @@ test("admin publishes a post that is visible publicly, and newsletter signup per
     .poll(async () => {
       return prisma.post.findUnique({
         select: {
+          authorAvatarKey: true,
+          authorIntro: true,
+          authorName: true,
+          coverImageKey: true,
+          isFeatured: true,
           publishedAt: true,
           status: true,
         },
@@ -109,19 +146,34 @@ test("admin publishes a post that is visible publicly, and newsletter signup per
       });
     })
     .toMatchObject({
+      authorIntro,
+      authorName,
+      isFeatured: true,
       status: PostStatus.PUBLISHED,
     });
 
-  await page.goto("/blog");
-  const publishedArticle = page.locator("article").filter({ hasText: title });
+  await page.goto("/");
+  await expect(page.getByText("Featured Article", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: title }).first()).toBeVisible();
+
+  const articleGrid = page.locator("#articles");
+  const publishedArticle = articleGrid.locator("article").filter({ hasText: title });
 
   await expect(publishedArticle.getByRole("heading", { name: title })).toBeVisible();
-  await publishedArticle.getByRole("link", { name: "Read post" }).click();
+  await expect(publishedArticle.getByText(excerpt)).toBeVisible();
 
+  await page.goto("/blog");
+  await expect(page).toHaveURL(/\/$/);
+
+  await page.goto(`/blog/${slug}`);
   await expect(page).toHaveURL(new RegExp(`/blog/${slug}$`));
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(page.getByText(body.split("\n\n")[0])).toBeVisible();
   await expect(page.getByText(body.split("\n\n")[1])).toBeVisible();
+  await expect(page.getByText("Written by")).toBeVisible();
+  await expect(page.getByRole("heading", { name: authorName })).toBeVisible();
+  await expect(page.getByText(authorIntro)).toBeVisible();
+  await expect(page.locator('img[src*="editorial-hero.png"]')).toHaveCount(0);
 
   await page.goto("/");
   await page.locator("#footer-email").fill(subscriberEmail);
