@@ -14,9 +14,11 @@ export function SiteHeader() {
           className="flex items-center gap-3"
           href="/"
         >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-editorial-red font-display text-lg font-semibold text-editorial-white">
-            mC
-          </span>
+          <img
+            alt="myClawTeam Blog"
+            className="h-11 w-auto"
+            src="https://myclawteam.ai/logo.png"
+          />
           <span className="grid gap-1">
             <span className="font-display text-xl font-semibold leading-none text-editorial-ink">
               myClawTeam Official Blogs
