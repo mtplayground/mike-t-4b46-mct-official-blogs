@@ -9,18 +9,19 @@ myClawTeam Blog is a production-ready editorial publishing app for official myCl
 - Legacy blog index, pagination, and category listing routes redirect to `/`; individual article routes at `/blog/[slug]` remain public.
 - Article detail pages render the post category/date/title/excerpt, optional signed cover image, GitHub-flavored Markdown body content with themed typography/components, signed `storage:` inline images, and an author block with signed avatar, name, and intro.
 - Newsletter signup in the footer includes client validation, duplicate handling, and PostgreSQL persistence.
-- Public header and footer use the hosted logo image from `https://myclawteam.ai/logo.png` plus visible `myClawTeam Blog` brand text.
+- Public header and footer use the hosted logo image from `https://myclawteam.ai/logo.png` plus visible `myClawTeam Blog` brand text, without the former subtitle in the logo block.
 - Public header/footer navigation includes Home and Admin entry points; the Admin link goes directly to the login screen so anonymous readers see a coherent auth page instead of a protected-route transition.
 - Footer category labels are clickable links: Thoughts → `/blog/category/thoughts`, Product Progress → `/blog/category/product-progress`, and Announcements → `/blog/category/announcements`.
 - Admin area is protected by configured admin credentials and a signed HTTP-only cookie session; `ADMIN_USERNAME`/`ADMIN_PASSWORD` are used when provided together, otherwise credentials are deterministically derived from `JWT_SECRET`. Login trims surrounding whitespace before constant-time comparison, and production admin auth redirects use `SELF_URL` as the canonical HTTPS origin.
 - Admin dashboard lists draft and published posts, supports publish/unpublish/delete actions, and links to subscriber management.
 - Admin create/edit form supports title, slug, excerpt, category, featured flag, draft/publish status, cover image, author name/intro/avatar, Markdown body, and inline image uploads.
 - Published posts must have cover image and author fields; drafts may leave those incomplete. Multiple posts may be featured at once.
+- Browser favicon is provided by `app/favicon.ico`, derived from the myClawTeam brand mark.
 - Sitemap includes the homepage and published article detail URLs only, plus robots.txt and route loading/error/not-found boundaries.
 
 ## Architecture
 
-- Next.js App Router, React, TypeScript, and Tailwind CSS.
+- Next.js App Router, React, TypeScript, and Tailwind CSS; App Router special files provide favicon, sitemap, and robots metadata.
 - Prisma ORM with PostgreSQL as the only persistent database.
 - Private S3-compatible object storage via the vendor-neutral `OBJECT_STORAGE_*` env vars.
 - Uploaded cover, avatar, and inline post images are stored as relative object keys in PostgreSQL; S3 keys are always prefixed with `OBJECT_STORAGE_PREFIX`, and browser image URLs are generated with signed GET URLs at render time. Markdown bodies keep `![alt](storage:key)` references in storage and rewrite them to signed URLs server-side before rendering.
