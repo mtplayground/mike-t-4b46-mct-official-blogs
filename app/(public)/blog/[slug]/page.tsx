@@ -9,8 +9,6 @@ import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
 
 export const revalidate = 300;
 
-const fallbackCoverImage = "/images/editorial-hero.png";
-
 const dateFormatter = new Intl.DateTimeFormat("en", {
   day: "numeric",
   month: "long",
@@ -97,7 +95,15 @@ function serializeJsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
-function buildArticleJsonLd(post: NonNullable<Awaited<ReturnType<typeof getPublishedPost>>>) {
+function buildArticleJsonLd({
+  authorAvatarUrl,
+  coverImageUrl,
+  post,
+}: {
+  authorAvatarUrl: string | null;
+  coverImageUrl: string | null;
+  post: NonNullable<Awaited<ReturnType<typeof getPublishedPost>>>;
+}) {
   const canonicalUrl = absoluteSiteUrl(`/blog/${post.slug}`);
 
   return {
@@ -108,14 +114,23 @@ function buildArticleJsonLd(post: NonNullable<Awaited<ReturnType<typeof getPubli
     datePublished: post.publishedAt?.toISOString(),
     dateModified: post.updatedAt.toISOString(),
     articleSection: post.category.name,
-    image: [absoluteSiteUrl(fallbackCoverImage)],
+    ...(coverImageUrl
+      ? {
+          image: [coverImageUrl],
+        }
+      : {}),
     mainEntityOfPage: {
       "@type": "WebPage",
       "@id": canonicalUrl,
     },
     author: {
-      "@type": "Organization",
-      name: "myClawTeam",
+      "@type": "Person",
+      name: post.authorName,
+      ...(authorAvatarUrl
+        ? {
+            image: authorAvatarUrl,
+          }
+        : {}),
     },
     publisher: {
       "@type": "Organization",
@@ -176,11 +191,12 @@ export default async function PostPage({ params }: PostPageProps) {
     notFound();
   }
 
-  const coverImageUrl = post.coverImageKey
-    ? await getSignedPostImageUrl(post.coverImageKey)
-    : fallbackCoverImage;
-  const bodyBlocks = await getPostBodyBlocks(post.body);
-  const articleJsonLd = buildArticleJsonLd(post);
+  const [coverImageUrl, authorAvatarUrl, bodyBlocks] = await Promise.all([
+    post.coverImageKey ? getSignedPostImageUrl(post.coverImageKey) : Promise.resolve(null),
+    post.authorAvatarKey ? getSignedPostImageUrl(post.authorAvatarKey) : Promise.resolve(null),
+    getPostBodyBlocks(post.body),
+  ]);
+  const articleJsonLd = buildArticleJsonLd({ authorAvatarUrl, coverImageUrl, post });
 
   return (
     <main>
@@ -220,14 +236,16 @@ export default async function PostPage({ params }: PostPageProps) {
 
         <section className="section section-white">
           <div className="page-shell grid gap-12">
-            <figure className="overflow-hidden rounded-card border border-editorial-line bg-editorial-cream shadow-editorial">
-              {/* eslint-disable-next-line @next/next/no-img-element -- Signed private cover URLs are resolved at render time. */}
-              <img
-                alt=""
-                className="h-[360px] w-full object-cover md:h-[520px]"
-                src={coverImageUrl}
-              />
-            </figure>
+            {coverImageUrl ? (
+              <figure className="overflow-hidden rounded-card border border-editorial-line bg-editorial-cream shadow-editorial">
+                {/* eslint-disable-next-line @next/next/no-img-element -- Signed private cover URLs are resolved at render time. */}
+                <img
+                  alt=""
+                  className="h-[360px] w-full object-cover md:h-[520px]"
+                  src={coverImageUrl}
+                />
+              </figure>
+            ) : null}
 
             <div className="mx-auto grid w-full max-w-3xl gap-7">
               {bodyBlocks.map((block) =>
@@ -245,6 +263,20 @@ export default async function PostPage({ params }: PostPageProps) {
                   </p>
                 ),
               )}
+
+              <aside className="mt-8 grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial sm:grid-cols-[auto_1fr] sm:items-center">
+                {authorAvatarUrl ? (
+                  <figure className="size-24 overflow-hidden rounded-full border border-editorial-line bg-editorial-white">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Signed private author avatar URLs are resolved at render time. */}
+                    <img alt="" className="h-full w-full object-cover" src={authorAvatarUrl} />
+                  </figure>
+                ) : null}
+                <div className="grid gap-2">
+                  <p className="eyebrow">Written by</p>
+                  <h2 className="text-2xl font-semibold text-editorial-ink">{post.authorName}</h2>
+                  <p className="leading-7 text-editorial-muted">{post.authorIntro}</p>
+                </div>
+              </aside>
             </div>
           </div>
         </section>
