@@ -6,7 +6,7 @@ myClawTeam Official Blogs is a production-ready editorial publishing app for off
 
 - Public homepage is the primary reading surface: it shows the latest featured published article as a hero, falls back to the latest published article, and renders a responsive article card grid linking to `/blog/[slug]` detail pages.
 - Legacy blog index, pagination, and category listing routes redirect to `/`; individual article routes at `/blog/[slug]` remain public.
-- Article detail pages render the post category/date/title/excerpt, optional signed cover image, Markdown-style body paragraphs and inline images, and an author block with signed avatar, name, and intro.
+- Article detail pages render the post category/date/title/excerpt, optional signed cover image, GitHub-flavored Markdown body content with themed typography/components, signed `storage:` inline images, and an author block with signed avatar, name, and intro.
 - Newsletter signup in the footer includes client validation, duplicate handling, and PostgreSQL persistence.
 - Admin area is protected by env-configured username/password and a signed HTTP-only cookie session; production admin auth redirects use `SELF_URL` as the canonical HTTPS origin.
 - Admin dashboard lists draft and published posts, supports publish/unpublish/delete actions, and links to subscriber management.
@@ -19,7 +19,7 @@ myClawTeam Official Blogs is a production-ready editorial publishing app for off
 - Next.js App Router, React, TypeScript, and Tailwind CSS.
 - Prisma ORM with PostgreSQL as the only persistent database.
 - Private S3-compatible object storage via the vendor-neutral `OBJECT_STORAGE_*` env vars.
-- Uploaded cover, avatar, and inline post images are stored as relative object keys in PostgreSQL; S3 keys are always prefixed with `OBJECT_STORAGE_PREFIX`, and browser image URLs are generated with signed GET URLs at render time.
+- Uploaded cover, avatar, and inline post images are stored as relative object keys in PostgreSQL; S3 keys are always prefixed with `OBJECT_STORAGE_PREFIX`, and browser image URLs are generated with signed GET URLs at render time. Markdown bodies keep `![alt](storage:key)` references in storage and rewrite them to signed URLs server-side before rendering.
 - Public pages use ISR where appropriate; admin and API routes are dynamic.
 - Runtime env validation is centralized in `lib/env/server.ts` and exposed through `npm run env:check`.
 
@@ -30,10 +30,10 @@ myClawTeam Official Blogs is a production-ready editorial publishing app for off
 - Required env includes `SELF_URL`, `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and all `OBJECT_STORAGE_*` values in `.env.example`.
 - Do not store uploaded files on local disk, in PostgreSQL blobs, or in public bucket URLs.
 - Admin auth is a first-party env-credential flow, not Google OAuth or a custom JWT layer; production login/logout redirects must be built from `SELF_URL`, while local/dev may use request headers.
-- Database schema, migrations, and seed data live under `prisma/`.
+- Database schema, migrations, and seed data live under `prisma/`. Markdown preprocessing lives in `lib/content/markdown.ts`; it leaves failed image signatures unchanged rather than breaking the article page.
 
 ## Quality Gates
 
-- `npm run test` covers admin session/origin logic, post visibility and published-field requirements, and subscriber validation/dedupe.
+- `npm run test` covers admin session/origin logic, post visibility and published-field requirements, Markdown storage-image preprocessing, and subscriber validation/dedupe.
 - `npm run e2e` covers admin login, required publish fields, featured homepage/card flow, `/blog` redirect, article author block, absence of the fixed banner fallback, and newsletter persistence.
 - `npm run lint`, `npm run build`, and `npm run env:check` are expected to pass before deployment.
