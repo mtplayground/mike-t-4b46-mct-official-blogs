@@ -11,3 +11,7 @@ node_modules/
 .pipeline-state.json
 .gitkeep
 .progress
+.env.production
+.next/
+.db_decision
+.storage_decision
