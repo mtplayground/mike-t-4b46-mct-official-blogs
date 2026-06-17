@@ -1,19 +1,21 @@
-# myClawTeam Official Blogs
+# myClawTeam Blog
 
-myClawTeam Official Blogs is a production-ready editorial publishing app for official myClawTeam updates, product progress, announcements, and engineering notes.
+myClawTeam Blog is a production-ready editorial publishing app for official myClawTeam updates, product progress, announcements, and engineering notes.
 
 ## What It Does
 
-- Public homepage is the primary reading surface: it uses consistent `myClawTeam Official Blogs` branding, shows the latest featured published article as a hero, falls back to the latest published article, and renders a responsive article card grid linking to `/blog/[slug]` detail pages.
+- Public homepage is the primary reading surface: it uses `myClawTeam Blog` branding, shows the latest featured published article as a hero, falls back to the latest published article, and renders a responsive article card grid linking to `/blog/[slug]` detail pages.
+- The homepage hero CTA is labeled `Read article`; the former secondary `Browse articles` CTA has been removed.
 - Legacy blog index, pagination, and category listing routes redirect to `/`; individual article routes at `/blog/[slug]` remain public.
 - Article detail pages render the post category/date/title/excerpt, optional signed cover image, GitHub-flavored Markdown body content with themed typography/components, signed `storage:` inline images, and an author block with signed avatar, name, and intro.
 - Newsletter signup in the footer includes client validation, duplicate handling, and PostgreSQL persistence.
+- Public header and footer use the hosted logo image from `https://myclawteam.ai/logo.png` plus visible `myClawTeam Blog` brand text.
 - Public header/footer navigation includes Home and Admin entry points; the Admin link goes directly to the login screen so anonymous readers see a coherent auth page instead of a protected-route transition.
+- Footer category labels are clickable links: Thoughts → `/blog/category/thoughts`, Product Progress → `/blog/category/product-progress`, and Announcements → `/blog/category/announcements`.
 - Admin area is protected by env-configured username/password and a signed HTTP-only cookie session; login trims surrounding whitespace from submitted and configured credentials before constant-time comparison, and production admin auth redirects use `SELF_URL` as the canonical HTTPS origin.
 - Admin dashboard lists draft and published posts, supports publish/unpublish/delete actions, and links to subscriber management.
 - Admin create/edit form supports title, slug, excerpt, category, featured flag, draft/publish status, cover image, author name/intro/avatar, Markdown body, and inline image uploads.
 - Published posts must have cover image and author fields; drafts may leave those incomplete. Multiple posts may be featured at once.
-- Shared header, footer, metadata, and public error states use the official blog name and copy focused on myClawTeam updates, product progress, announcements, and engineering notes.
 - Sitemap includes the homepage and published article detail URLs only, plus robots.txt and route loading/error/not-found boundaries.
 
 ## Architecture
@@ -27,7 +29,7 @@ myClawTeam Official Blogs is a production-ready editorial publishing app for off
 
 ## Key Conventions
 
-- Product branding is `myClawTeam Official Blogs`.
+- Product branding is `myClawTeam Blog`.
 - Runtime server defaults bind to `0.0.0.0:8080`; production start uses `${PORT:-8080}`.
 - Required env includes `SELF_URL`, `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and all `OBJECT_STORAGE_*` values in `.env.example`.
 - Do not store uploaded files on local disk, in PostgreSQL blobs, or in public bucket URLs.
