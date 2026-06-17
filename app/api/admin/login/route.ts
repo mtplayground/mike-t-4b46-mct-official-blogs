@@ -4,7 +4,7 @@ import {
   ADMIN_SESSION_COOKIE,
   ADMIN_SESSION_MAX_AGE_SECONDS,
   createAdminSession,
-  credentialsMatch,
+  adminCredentialsMatch,
 } from "@/lib/admin/session";
 import { getAdminRedirectOrigin } from "@/lib/admin/origin";
 import { getAdminCredentials } from "@/lib/env/server";
@@ -38,8 +38,7 @@ export async function POST(request: Request) {
   if (
     typeof username !== "string" ||
     typeof password !== "string" ||
-    !credentialsMatch(username.trim(), credentials.username) ||
-    !credentialsMatch(password, credentials.password)
+    !adminCredentialsMatch({ username, password }, credentials)
   ) {
     return redirectToLogin(request);
   }

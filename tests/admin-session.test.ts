@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   ADMIN_SESSION_MAX_AGE_SECONDS,
+  adminCredentialsMatch,
   createAdminSession,
   credentialsMatch,
   verifyAdminSession,
@@ -15,6 +16,26 @@ test("credentialsMatch accepts exact admin credentials", () => {
 test("credentialsMatch rejects wrong or length-mismatched credentials", () => {
   assert.equal(credentialsMatch("editor", "publisher"), false);
   assert.equal(credentialsMatch("editor", "editorial"), false);
+});
+
+test("adminCredentialsMatch trims submitted and configured password whitespace", () => {
+  assert.equal(
+    adminCredentialsMatch(
+      { username: " editor ", password: "  correct horse battery staple\n" },
+      { username: "editor", password: "correct horse battery staple  " },
+    ),
+    true,
+  );
+});
+
+test("adminCredentialsMatch rejects genuinely wrong passwords after trimming", () => {
+  assert.equal(
+    adminCredentialsMatch(
+      { username: "editor", password: "wrong horse battery staple" },
+      { username: "editor", password: "correct horse battery staple  " },
+    ),
+    false,
+  );
 });
 
 test("admin sessions verify with the same secret", async () => {
