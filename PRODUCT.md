@@ -4,7 +4,7 @@ myClawTeam Official Blogs is a production-ready editorial publishing app for off
 
 ## What It Does
 
-- Public homepage is the primary reading surface: it shows the latest featured published article as a hero, falls back to the latest published article, and renders a responsive article card grid linking to `/blog/[slug]` detail pages.
+- Public homepage is the primary reading surface: it uses consistent `myClawTeam Official Blogs` branding, shows the latest featured published article as a hero, falls back to the latest published article, and renders a responsive article card grid linking to `/blog/[slug]` detail pages.
 - Legacy blog index, pagination, and category listing routes redirect to `/`; individual article routes at `/blog/[slug]` remain public.
 - Article detail pages render the post category/date/title/excerpt, optional signed cover image, GitHub-flavored Markdown body content with themed typography/components, signed `storage:` inline images, and an author block with signed avatar, name, and intro.
 - Newsletter signup in the footer includes client validation, duplicate handling, and PostgreSQL persistence.
@@ -12,6 +12,7 @@ myClawTeam Official Blogs is a production-ready editorial publishing app for off
 - Admin dashboard lists draft and published posts, supports publish/unpublish/delete actions, and links to subscriber management.
 - Admin create/edit form supports title, slug, excerpt, category, featured flag, draft/publish status, cover image, author name/intro/avatar, Markdown body, and inline image uploads.
 - Published posts must have cover image and author fields; drafts may leave those incomplete. Multiple posts may be featured at once.
+- Shared header, footer, metadata, and public error states use the official blog name and copy focused on myClawTeam updates, product progress, announcements, and engineering notes.
 - Sitemap includes the homepage and published article detail URLs only, plus robots.txt and route loading/error/not-found boundaries.
 
 ## Architecture
