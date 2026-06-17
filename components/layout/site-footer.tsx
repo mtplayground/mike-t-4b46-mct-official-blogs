@@ -7,7 +7,11 @@ const footerLinks = [
   { href: "/admin/login", label: "Admin" },
 ];
 
-const categoryLabels = ["Thoughts", "Product Progress", "Announcements"];
+const categoryLinks = [
+  { href: "/blog/category/thoughts", label: "Thoughts" },
+  { href: "/blog/category/product-progress", label: "Product Progress" },
+  { href: "/blog/category/announcements", label: "Announcements" },
+];
 
 export function SiteFooter() {
   return (
@@ -63,8 +67,12 @@ export function SiteFooter() {
             Categories
           </h2>
           <ul className="grid gap-3 text-sm text-editorial-dark-card-muted">
-            {categoryLabels.map((label) => (
-              <li key={label}>{label}</li>
+            {categoryLinks.map((category) => (
+              <li key={category.href}>
+                <Link className="transition hover:text-editorial-white" href={category.href}>
+                  {category.label}
+                </Link>
+              </li>
             ))}
           </ul>
         </div>
