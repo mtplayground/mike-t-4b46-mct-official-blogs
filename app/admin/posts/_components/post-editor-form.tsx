@@ -8,7 +8,18 @@ type PostEditorFormProps = {
   error?: string;
   post?: Pick<
     Post,
-    "body" | "categoryId" | "coverImageKey" | "excerpt" | "id" | "slug" | "status" | "title"
+    | "authorAvatarKey"
+    | "authorIntro"
+    | "authorName"
+    | "body"
+    | "categoryId"
+    | "coverImageKey"
+    | "excerpt"
+    | "id"
+    | "isFeatured"
+    | "slug"
+    | "status"
+    | "title"
   >;
 };
 
@@ -112,6 +123,17 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
           </fieldset>
         </div>
 
+        <label className="flex items-center gap-3 rounded-card border border-editorial-line bg-editorial-cream px-4 py-3 text-sm font-bold text-editorial-ink">
+          <input
+            className="size-4 accent-editorial-red"
+            defaultChecked={post?.isFeatured ?? false}
+            name="isFeatured"
+            type="checkbox"
+            value="yes"
+          />
+          Featured article
+        </label>
+
         <label className="grid gap-2">
           <span className="text-sm font-bold uppercase text-editorial-ink">Cover image</span>
           <input
@@ -131,6 +153,59 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
               value="yes"
             />
             Remove current cover image
+          </label>
+        ) : null}
+      </div>
+
+      <div className="grid gap-5 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial">
+        <div className="grid gap-2">
+          <p className="text-sm font-bold uppercase text-editorial-ink">Author</p>
+          <p className="text-sm leading-6 text-editorial-muted">
+            Author name, intro, avatar, and cover image are required before a post can be published.
+            Drafts may leave them incomplete.
+          </p>
+        </div>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold uppercase text-editorial-ink">Author name</span>
+          <input
+            className="rounded-button border border-editorial-line px-4 py-3 text-base outline-none transition focus:border-editorial-red focus:ring-2 focus:ring-editorial-red/20"
+            defaultValue={post?.authorName}
+            maxLength={160}
+            name="authorName"
+            type="text"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold uppercase text-editorial-ink">Author intro</span>
+          <textarea
+            className="min-h-28 rounded-card border border-editorial-line px-4 py-3 text-base leading-7 outline-none transition focus:border-editorial-red focus:ring-2 focus:ring-editorial-red/20"
+            defaultValue={post?.authorIntro}
+            maxLength={500}
+            name="authorIntro"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold uppercase text-editorial-ink">Author avatar</span>
+          <input
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="rounded-button border border-editorial-line bg-editorial-white px-4 py-3 text-sm"
+            name="authorAvatar"
+            type="file"
+          />
+        </label>
+
+        {post?.authorAvatarKey ? (
+          <label className="flex items-center gap-3 text-sm text-editorial-muted">
+            <input
+              className="size-4 accent-editorial-red"
+              name="removeAuthorAvatar"
+              type="checkbox"
+              value="yes"
+            />
+            Remove current author avatar
           </label>
         ) : null}
       </div>

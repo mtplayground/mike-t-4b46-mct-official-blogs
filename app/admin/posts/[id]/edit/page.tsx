@@ -28,11 +28,15 @@ export default async function EditPostPage({ params, searchParams }: EditPostPag
     }),
     prisma.post.findUnique({
       select: {
+        authorAvatarKey: true,
+        authorIntro: true,
+        authorName: true,
         body: true,
         categoryId: true,
         coverImageKey: true,
         excerpt: true,
         id: true,
+        isFeatured: true,
         slug: true,
         status: true,
         title: true,
