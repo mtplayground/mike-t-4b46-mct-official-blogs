@@ -1,7 +1,6 @@
 import { PostStatus } from "@prisma/client";
 import type { MetadataRoute } from "next";
 
-import { categoryUrlSlugByEnum } from "./(public)/blog/_components/blog-listing";
 import { prisma } from "@/lib/db/prisma";
 import { absoluteSiteUrl } from "@/lib/metadata";
 
@@ -29,16 +28,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 1,
     },
-    {
-      url: absoluteSiteUrl("/blog"),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    ...Object.values(categoryUrlSlugByEnum).map((category) => ({
-      url: absoluteSiteUrl(`/blog/category/${category}`),
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    })),
   ];
 
   return [

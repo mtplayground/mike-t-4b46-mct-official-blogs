@@ -196,8 +196,8 @@ export default async function HomePage() {
                 AI-powered software.
               </p>
             </div>
-            <Link className="editorial-button" href="/blog">
-              Browse archive
+            <Link className="editorial-button" href="#articles">
+              Browse articles
             </Link>
           </div>
 

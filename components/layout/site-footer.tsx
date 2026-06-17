@@ -4,7 +4,6 @@ import { NewsletterSignupForm } from "@/components/newsletter/newsletter-signup-
 
 const footerLinks = [
   { href: "/", label: "Home" },
-  { href: "/blog", label: "Blog" },
   { href: "/admin", label: "Admin" },
 ];
 
