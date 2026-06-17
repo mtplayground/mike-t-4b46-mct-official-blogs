@@ -1,41 +1,26 @@
-# Architecture plan for Issues #59 and #60
+# Architecture plan for Issue #63
 
 ## Project context
-- Next.js App Router + React + TypeScript blog application.
-- Prisma/PostgreSQL stores posts, categories, and subscribers.
-- Private S3-compatible object storage stores post images as relative keys; read URLs are signed server-side through `lib/storage/object-storage.ts`.
-- Public post detail page currently parses article bodies manually by splitting paragraphs and recognizing only exact `![alt](storage:key)` paragraphs.
+- myClawTeam Official Blogs is a Next.js App Router, React, TypeScript, Tailwind CSS app.
+- Admin authentication is a first-party username/password flow backed by environment variables, implemented in `app/api/admin/login/route.ts` with signed HTTP-only cookie sessions from `lib/admin/session.ts`.
+- Existing tests for constant-time credential comparison and session signing live in `tests/admin-session.test.ts`; admin redirect-origin tests live in `tests/admin-origin.test.ts`.
 
-## Issue #59: Render article bodies as Markdown with signed inline images
-- Add Markdown rendering dependencies: `react-markdown` and `remark-gfm`.
-- Add `lib/content/markdown.ts` as the shared preprocessing module.
-  - Export `getSignedMarkdownBody(body, signer?)`.
-  - The default signer should call `getSignedPostImageUrl`.
-  - Find Markdown image destinations using the `storage:<relative-key>` convention.
-  - Replace successful `storage:` URLs with signed read URLs.
-  - If signing fails for one image, leave that reference unchanged and continue processing the rest.
-- Replace the manual `BodyBlock` parser/rendering in `app/(public)/blog/[slug]/page.tsx` with `<ReactMarkdown>`.
-  - Keep signing server-side before rendering.
-  - Theme Markdown components to match the current editorial design for paragraphs, headings, lists, links, blockquotes, inline code, code blocks, and images.
-  - Preserve existing cover image and author-card behavior.
+## Issue #63: Trim whitespace on both username and password during admin login
+- Update the admin login route so submitted username and submitted password are trimmed before `credentialsMatch`.
+- Also trim configured `ADMIN_USERNAME` and `ADMIN_PASSWORD` before comparing, so accidental leading/trailing spaces or newlines in deployment env values do not reject otherwise-correct credentials.
+- Preserve the existing constant-time comparison helper; do not replace it with direct equality checks.
+- Add unit coverage for password whitespace handling. Prefer testing a pure helper or exported normalization/matching function so tests avoid HTTP/server setup.
 
-## Issue #60: Unit-test Markdown storage-image preprocessing
-- Add focused Node test coverage for `lib/content/markdown.ts`.
-- Tests should cover:
-  - Plain Markdown passes through unchanged.
-  - One `storage:` image is replaced with the signed URL returned by the signer.
-  - Multiple `storage:` references are all processed.
-  - A signer failure leaves that specific reference unchanged and does not prevent other references from being signed.
-- Keep signer injectable so tests do not need S3 credentials or network access.
+## Module and file organization
+- Keep credential comparison primitives in `lib/admin/session.ts`.
+- If route-level matching needs to be unit-tested, expose a small helper from `lib/admin/session.ts`, such as `adminCredentialsMatch(inputUsername, inputPassword, expectedCredentials)`, and use it from `app/api/admin/login/route.ts`.
+- Add tests to `tests/admin-session.test.ts`, near existing `credentialsMatch` tests.
 
 ## Dependencies and sequencing
-- Issue #60 depends on the helper introduced by Issue #59.
-- Implement Issue #59 first so the module and public rendering integration exist.
-- Implement Issue #60 second to lock down helper behavior and failure handling.
+- No dependency on other planned issues.
+- No schema, migration, storage, or UI changes are expected.
 
 ## Key design decisions
-- Store post bodies unchanged in PostgreSQL; transform only at render time.
-- Keep database storage keys relative and continue applying `OBJECT_STORAGE_PREFIX` only inside the object-storage helper.
-- Do not expose object-storage credentials or raw full object keys to the browser.
-- Prefer a small string preprocessor over changing the persisted Markdown schema.
-- Keep Markdown rendering server-side in the App Router detail page to avoid client-side signing or credential exposure.
+- Trim only at the login/auth comparison boundary; do not mutate environment variables globally.
+- Keep the signed cookie session format unchanged.
+- Maintain constant-time comparisons for both username and password after trimming.
