@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export type AdminCredentials = {
   username: string;
   password: string;
@@ -33,6 +35,19 @@ function requiredEnv(name: string) {
   }
 
   return value;
+}
+
+function optionalEnv(name: string) {
+  return process.env[name] || undefined;
+}
+
+function deriveAdminCredentials(jwtSecret: string): AdminCredentials {
+  const digest = createHash("sha256").update(`admin:${jwtSecret}`).digest("hex");
+
+  return {
+    username: `admin_${digest.slice(0, 8)}`,
+    password: digest,
+  };
 }
 
 function requiredUrlEnv(name: string) {
@@ -72,10 +87,18 @@ export function getSelfUrl() {
 }
 
 export function getAdminCredentials(): AdminCredentials {
-  cachedAdminCredentials ??= {
-    username: requiredEnv("ADMIN_USERNAME"),
-    password: requiredEnv("ADMIN_PASSWORD"),
-  };
+  if (!cachedAdminCredentials) {
+    const username = optionalEnv("ADMIN_USERNAME");
+    const password = optionalEnv("ADMIN_PASSWORD");
+
+    if (username && password) {
+      cachedAdminCredentials = { username, password };
+    } else if (username || password) {
+      throw new Error("ADMIN_USERNAME and ADMIN_PASSWORD must be configured together.");
+    } else {
+      cachedAdminCredentials = deriveAdminCredentials(requiredEnv("JWT_SECRET"));
+    }
+  }
 
   return cachedAdminCredentials;
 }
