@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin/session";
+import { getAdminRedirectOrigin } from "@/lib/admin/origin";
 
 export async function POST(request: Request) {
-  const response = NextResponse.redirect(new URL("/admin/login", request.url));
+  const response = NextResponse.redirect(new URL("/admin/login", getAdminRedirectOrigin(request)));
 
   response.cookies.set({
     name: ADMIN_SESSION_COOKIE,
