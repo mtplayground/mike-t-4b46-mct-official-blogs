@@ -2,7 +2,6 @@ import { PostStatus } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { categoryUrlSlugByEnum } from "../_components/blog-listing";
 import { prisma } from "@/lib/db/prisma";
 import { absoluteSiteUrl, buildPageMetadata, siteName } from "@/lib/metadata";
 import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
@@ -211,18 +210,13 @@ export default async function PostPage({ params }: PostPageProps) {
           <div className="page-shell grid gap-10">
             <Link
               className="w-fit text-sm font-bold text-editorial-muted underline decoration-editorial-red decoration-2 underline-offset-8 transition hover:text-editorial-red"
-              href="/blog"
+              href="/"
             >
-              Back to blog
+              Back to articles
             </Link>
             <div className="grid gap-6">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-editorial-muted">
-                <Link
-                  className="font-bold uppercase text-editorial-red transition hover:text-editorial-ink"
-                  href={`/blog/category/${categoryUrlSlugByEnum[post.category.slug]}`}
-                >
-                  {post.category.name}
-                </Link>
+                <span className="font-bold uppercase text-editorial-red">{post.category.name}</span>
                 <span aria-hidden="true">/</span>
                 <time dateTime={post.publishedAt?.toISOString()}>
                   {post.publishedAt ? dateFormatter.format(post.publishedAt) : "Unscheduled"}

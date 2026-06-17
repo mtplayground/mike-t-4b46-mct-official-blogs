@@ -37,9 +37,9 @@ export function BlogLink() {
   return (
     <Link
       className="inline-flex w-fit justify-center rounded-button border border-editorial-line bg-editorial-white px-6 py-3 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
-      href="/blog"
+      href="/#articles"
     >
-      Read the blog
+      Browse articles
     </Link>
   );
 }
