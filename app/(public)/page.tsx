@@ -1,8 +1,9 @@
-import { PostStatus } from "@prisma/client";
+import { PostStatus, type Category, type Post } from "@prisma/client";
 import Link from "next/link";
 
 import { prisma } from "@/lib/db/prisma";
 import { buildPageMetadata } from "@/lib/metadata";
+import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
 
 export const revalidate = 300;
 
@@ -20,165 +21,197 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
-const focusAreas = [
-  {
-    title: "Thoughts",
-    copy: "Practical notes on AI engineering decisions, delivery habits, and the work behind useful systems.",
-  },
-  {
-    title: "Product Progress",
-    copy: "Clear updates from active builds, including what changed, why it changed, and what comes next.",
-  },
-  {
-    title: "Announcements",
-    copy: "Launch notes, platform milestones, and official updates from the myClawTeam engineering team.",
-  },
-];
+type PublishedPost = Post & {
+  category: Category;
+};
 
-async function getRecentPosts() {
-  return prisma.post.findMany({
-    include: {
-      category: true,
+type HomepagePost = PublishedPost & {
+  coverImageUrl: string | null;
+};
+
+function publishedPostWhere() {
+  return {
+    publishedAt: {
+      not: null,
     },
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    take: 3,
-    where: {
-      publishedAt: {
-        not: null,
+    status: PostStatus.PUBLISHED,
+  };
+}
+
+function formatPublishedDate(post: Pick<Post, "publishedAt">) {
+  return post.publishedAt ? dateFormatter.format(post.publishedAt) : "Unscheduled";
+}
+
+async function withSignedCoverImage(post: PublishedPost): Promise<HomepagePost> {
+  if (!post.coverImageKey) {
+    return {
+      ...post,
+      coverImageUrl: null,
+    };
+  }
+
+  return {
+    ...post,
+    coverImageUrl: await getSignedPostImageUrl(post.coverImageKey),
+  };
+}
+
+async function getHomepagePosts() {
+  const where = publishedPostWhere();
+  const [featuredPost, latestPost, posts] = await Promise.all([
+    prisma.post.findFirst({
+      include: {
+        category: true,
       },
-      status: PostStatus.PUBLISHED,
-    },
-  });
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      where: {
+        ...where,
+        isFeatured: true,
+      },
+    }),
+    prisma.post.findFirst({
+      include: {
+        category: true,
+      },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      where,
+    }),
+    prisma.post.findMany({
+      include: {
+        category: true,
+      },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      where,
+    }),
+  ]);
+  const heroPost = featuredPost ?? latestPost;
+
+  return {
+    heroPost: heroPost ? await withSignedCoverImage(heroPost) : null,
+    posts: await Promise.all(posts.map(withSignedCoverImage)),
+  };
+}
+
+function PostImage({ alt, src }: { alt: string; src: string | null }) {
+  if (!src) {
+    return (
+      <div className="flex min-h-[260px] items-center justify-center bg-editorial-cream px-6 text-center text-sm font-bold uppercase tracking-[0.18em] text-editorial-muted">
+        Cover image pending
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- Private object storage images are signed server-side before render.
+    <img alt={alt} className="h-full w-full object-cover" src={src} />
+  );
+}
+
+function PostMeta({ post }: { post: HomepagePost }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-editorial-muted">
+      <span className="font-bold uppercase text-editorial-red">{post.category.name}</span>
+      <span aria-hidden="true">/</span>
+      <time dateTime={post.publishedAt?.toISOString()}>{formatPublishedDate(post)}</time>
+    </div>
+  );
+}
+
+function ArticleCard({ post }: { post: HomepagePost }) {
+  return (
+    <article className="group grid overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial transition hover:-translate-y-1 hover:shadow-lg">
+      <Link className="grid h-full" href={`/blog/${post.slug}`}>
+        <figure className="h-64 overflow-hidden bg-editorial-cream">
+          <PostImage alt="" src={post.coverImageUrl} />
+        </figure>
+        <div className="grid content-between gap-8 p-6">
+          <div className="grid gap-4">
+            <PostMeta post={post} />
+            <h2 className="text-[1.55rem] leading-8 transition group-hover:text-editorial-red">
+              {post.title}
+            </h2>
+            <p className="leading-7 text-editorial-muted">{post.excerpt}</p>
+          </div>
+          <span className="w-fit text-sm font-bold text-editorial-ink underline decoration-editorial-red decoration-2 underline-offset-8 transition group-hover:text-editorial-red">
+            Read article
+          </span>
+        </div>
+      </Link>
+    </article>
+  );
 }
 
 export default async function HomePage() {
-  const recentPosts = await getRecentPosts();
+  const { heroPost, posts } = await getHomepagePosts();
 
   return (
     <main>
-      <section
-        className="relative overflow-hidden bg-editorial-cream"
-        style={{
-          backgroundImage:
-            "linear-gradient(90deg, rgb(247 242 234 / 0.98) 0%, rgb(247 242 234 / 0.88) 47%, rgb(247 242 234 / 0.32) 100%), url('/images/editorial-hero.png')",
-          backgroundPosition: "center",
-          backgroundSize: "cover",
-        }}
-      >
-        <div className="page-shell min-h-[680px] py-24 md:min-h-[720px] md:py-28">
-          <div className="grid max-w-3xl gap-8">
-            <p className="eyebrow">myClawTeam Official Blogs</p>
-            <h1 className="text-[3rem] font-display font-semibold leading-[3.2rem] text-editorial-ink md:text-heading-lg">
-              Practical AI engineering, written in the{" "}
-              <span className="text-editorial-red">open</span>.
-            </h1>
-            <p className="max-w-2xl text-lead text-editorial-muted">
-              Field notes, product progress, and announcements from the team building dependable
-              AI-powered software with senior engineering judgment.
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link className="editorial-button" href="/blog">
-                Read the blog
-              </Link>
+      <section className="section section-cream overflow-hidden">
+        <div className="page-shell grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+          {heroPost ? (
+            <>
+              <div className="stack max-w-3xl">
+                <p className="eyebrow">Featured Article</p>
+                <PostMeta post={heroPost} />
+                <h1 className="text-[3rem] font-display font-semibold leading-[3.2rem] text-editorial-ink md:text-heading-lg">
+                  {heroPost.title}
+                </h1>
+                <p className="text-lead text-editorial-muted">{heroPost.excerpt}</p>
+                <Link className="editorial-button w-fit" href={`/blog/${heroPost.slug}`}>
+                  Read featured article
+                </Link>
+              </div>
               <Link
-                className="text-sm font-bold text-editorial-ink underline decoration-editorial-red decoration-2 underline-offset-8 transition hover:text-editorial-red"
-                href="#recent-posts"
+                aria-label={`Read ${heroPost.title}`}
+                className="group overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial"
+                href={`/blog/${heroPost.slug}`}
               >
-                Latest posts
+                <figure className="h-[420px] overflow-hidden bg-editorial-cream md:h-[560px]">
+                  <PostImage alt="" src={heroPost.coverImageUrl} />
+                </figure>
               </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section section-white">
-        <div className="page-shell grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
-          <div className="stack">
-            <p className="eyebrow">Editorial Focus</p>
-            <h2 className="text-heading-md">A useful signal through the build cycle.</h2>
-            <p className="text-lead text-editorial-muted">
-              The journal keeps the work legible: the thinking behind decisions, the progress worth
-              tracking, and the announcements teams need to act on.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {focusAreas.map((area) => (
-              <article
-                className="feature-card grid min-h-[260px] content-between gap-8"
-                key={area.title}
-              >
-                <div className="grid gap-4">
-                  <p className="eyebrow">{area.title}</p>
-                  <h3 className="text-[1.65rem] leading-8 text-editorial-white">{area.title}</h3>
-                </div>
-                <p className="feature-card-muted leading-7">{area.copy}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="section section-cream" id="recent-posts">
-        <div className="page-shell grid gap-10">
-          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <div className="stack max-w-2xl">
-              <p className="eyebrow">Recent Posts</p>
-              <h2 className="text-heading-md">Latest notes from the team.</h2>
-              <p className="text-lead text-editorial-muted">
-                Fresh published entries from the editorial archive, ordered by publication date.
-              </p>
-            </div>
-            <Link className="editorial-button" href="/blog">
-              Browse all posts
-            </Link>
-          </div>
-
-          {recentPosts.length > 0 ? (
-            <div className="grid gap-5 md:grid-cols-3">
-              {recentPosts.map((post) => (
-                <article
-                  className="grid min-h-[320px] content-between gap-8 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial"
-                  key={post.id}
-                >
-                  <div className="grid gap-4">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-editorial-muted">
-                      <span className="font-bold uppercase text-editorial-red">
-                        {post.category.name}
-                      </span>
-                      <span aria-hidden="true">/</span>
-                      <time dateTime={post.publishedAt?.toISOString()}>
-                        {post.publishedAt ? dateFormatter.format(post.publishedAt) : "Unscheduled"}
-                      </time>
-                    </div>
-                    <h3 className="text-[1.55rem] leading-8">{post.title}</h3>
-                    <p className="leading-7 text-editorial-muted">{post.excerpt}</p>
-                  </div>
-                  <Link
-                    className="w-fit text-sm font-bold text-editorial-ink underline decoration-editorial-red decoration-2 underline-offset-8 transition hover:text-editorial-red"
-                    href="/blog"
-                  >
-                    Read on the blog
-                  </Link>
-                </article>
-              ))}
-            </div>
+            </>
           ) : (
-            <div className="rounded-card border border-editorial-line bg-editorial-white p-8 text-editorial-muted">
-              Published posts will appear here after the archive is seeded.
+            <div className="stack max-w-3xl lg:col-span-2">
+              <p className="eyebrow">myClawTeam Official Blogs</p>
+              <h1 className="text-[3rem] font-display font-semibold leading-[3.2rem] text-editorial-ink md:text-heading-lg">
+                Practical AI engineering, written in the open.
+              </h1>
+              <p className="text-lead text-editorial-muted">
+                Published articles will appear here once the editorial archive has a live post.
+              </p>
             </div>
           )}
         </div>
       </section>
 
-      <section className="section section-white">
-        <div className="page-shell grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
-          <div className="stack max-w-3xl">
-            <p className="eyebrow">Built for clarity</p>
-            <h2 className="text-heading-md">Follow the decisions behind dependable AI software.</h2>
+      <section className="section section-white" id="articles">
+        <div className="page-shell grid gap-10">
+          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="stack max-w-3xl">
+              <p className="eyebrow">Latest Articles</p>
+              <h2 className="text-heading-md">Read the official journal.</h2>
+              <p className="text-lead text-editorial-muted">
+                Field notes, product progress, and announcements from the team building dependable
+                AI-powered software.
+              </p>
+            </div>
+            <Link className="editorial-button" href="/blog">
+              Browse archive
+            </Link>
           </div>
-          <Link className="editorial-button" href="/blog">
-            Start reading
-          </Link>
+
+          {posts.length > 0 ? (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {posts.map((post) => (
+                <ArticleCard key={post.id} post={post} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-card border border-editorial-line bg-editorial-cream p-8 text-editorial-muted">
+              Published posts will appear here after the archive is seeded.
+            </div>
+          )}
         </div>
       </section>
     </main>
