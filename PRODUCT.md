@@ -8,7 +8,7 @@ myClawTeam Official Blogs is a production-ready editorial publishing app for off
 - Legacy blog index, pagination, and category listing routes redirect to `/`; individual article routes at `/blog/[slug]` remain public.
 - Article detail pages render the post category/date/title/excerpt, optional signed cover image, GitHub-flavored Markdown body content with themed typography/components, signed `storage:` inline images, and an author block with signed avatar, name, and intro.
 - Newsletter signup in the footer includes client validation, duplicate handling, and PostgreSQL persistence.
-- Admin area is protected by env-configured username/password and a signed HTTP-only cookie session; production admin auth redirects use `SELF_URL` as the canonical HTTPS origin.
+- Admin area is protected by env-configured username/password and a signed HTTP-only cookie session; login trims surrounding whitespace from submitted and configured credentials before constant-time comparison, and production admin auth redirects use `SELF_URL` as the canonical HTTPS origin.
 - Admin dashboard lists draft and published posts, supports publish/unpublish/delete actions, and links to subscriber management.
 - Admin create/edit form supports title, slug, excerpt, category, featured flag, draft/publish status, cover image, author name/intro/avatar, Markdown body, and inline image uploads.
 - Published posts must have cover image and author fields; drafts may leave those incomplete. Multiple posts may be featured at once.
@@ -29,11 +29,11 @@ myClawTeam Official Blogs is a production-ready editorial publishing app for off
 - Runtime server defaults bind to `0.0.0.0:8080`; production start uses `${PORT:-8080}`.
 - Required env includes `SELF_URL`, `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and all `OBJECT_STORAGE_*` values in `.env.example`.
 - Do not store uploaded files on local disk, in PostgreSQL blobs, or in public bucket URLs.
-- Admin auth is a first-party env-credential flow, not Google OAuth or a custom JWT layer; production login/logout redirects must be built from `SELF_URL`, while local/dev may use request headers.
+- Admin auth is a first-party env-credential flow, not Google OAuth or a custom JWT layer; keep constant-time credential checks and whitespace-tolerant login comparisons, and build production login/logout redirects from `SELF_URL` while local/dev may use request headers.
 - Database schema, migrations, and seed data live under `prisma/`. Markdown preprocessing lives in `lib/content/markdown.ts`; it leaves failed image signatures unchanged rather than breaking the article page.
 
 ## Quality Gates
 
-- `npm run test` covers admin session/origin logic, post visibility and published-field requirements, Markdown storage-image preprocessing, and subscriber validation/dedupe.
+- `npm run test` covers admin session/origin logic, whitespace-tolerant credential matching, post visibility and published-field requirements, Markdown storage-image preprocessing, and subscriber validation/dedupe.
 - `npm run e2e` covers admin login, required publish fields, featured homepage/card flow, `/blog` redirect, article author block, absence of the fixed banner fallback, and newsletter persistence.
 - `npm run lint`, `npm run build`, and `npm run env:check` are expected to pass before deployment.
