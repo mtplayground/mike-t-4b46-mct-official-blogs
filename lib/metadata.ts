@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { getSelfUrl } from "./env/server";
 
-export const siteName = "myClawTeam Official Blogs";
+export const siteName = "myClawTeam Blog";
 export const defaultDescription =
   "Official updates, product progress, announcements, and engineering notes from myClawTeam.";
 
