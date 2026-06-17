@@ -32,6 +32,11 @@ const samplePosts = [
       "This blog will share the product thinking, technical decisions, and operational patterns behind that approach.",
     ].join("\n\n"),
     categorySlug: CategorySlug.THOUGHTS,
+    isFeatured: false,
+    authorName: "myClawTeam Editorial Team",
+    authorIntro:
+      "Notes from the myClawTeam team on practical AI engineering, product craft, and dependable delivery habits.",
+    authorAvatarKey: null,
     publishedAt: new Date("2026-05-20T14:00:00.000Z"),
   },
   {
@@ -45,6 +50,11 @@ const samplePosts = [
       "The goal is a publishing surface that is simple to operate and easy to evolve as myClawTeam shares more product progress.",
     ].join("\n\n"),
     categorySlug: CategorySlug.PRODUCT_PROGRESS,
+    isFeatured: true,
+    authorName: "myClawTeam Product Team",
+    authorIntro:
+      "Build updates from the myClawTeam product team, focused on transparent progress and maintainable software systems.",
+    authorAvatarKey: null,
     publishedAt: new Date("2026-05-27T14:00:00.000Z"),
   },
   {
@@ -58,6 +68,11 @@ const samplePosts = [
       "More posts will arrive as the publishing workflow comes online.",
     ].join("\n\n"),
     categorySlug: CategorySlug.ANNOUNCEMENTS,
+    isFeatured: false,
+    authorName: "myClawTeam Communications",
+    authorIntro:
+      "Official announcements and launch notes from myClawTeam, written for readers tracking product and platform milestones.",
+    authorAvatarKey: null,
     publishedAt: new Date("2026-06-03T14:00:00.000Z"),
   },
 ] as const;
@@ -84,6 +99,10 @@ async function seedSamplePosts() {
         slug: post.slug,
         excerpt: post.excerpt,
         body: post.body,
+        isFeatured: post.isFeatured,
+        authorName: post.authorName,
+        authorIntro: post.authorIntro,
+        authorAvatarKey: post.authorAvatarKey,
         status: PostStatus.PUBLISHED,
         publishedAt: post.publishedAt,
         category: {
@@ -94,6 +113,10 @@ async function seedSamplePosts() {
         title: post.title,
         excerpt: post.excerpt,
         body: post.body,
+        isFeatured: post.isFeatured,
+        authorName: post.authorName,
+        authorIntro: post.authorIntro,
+        authorAvatarKey: post.authorAvatarKey,
         status: PostStatus.PUBLISHED,
         publishedAt: post.publishedAt,
         category: {
