@@ -1,26 +1,28 @@
-# Architecture plan for Issue #63
+# Architecture plan for Issue #65
 
 ## Project context
-- myClawTeam Official Blogs is a Next.js App Router, React, TypeScript, Tailwind CSS app.
-- Admin authentication is a first-party username/password flow backed by environment variables, implemented in `app/api/admin/login/route.ts` with signed HTTP-only cookie sessions from `lib/admin/session.ts`.
-- Existing tests for constant-time credential comparison and session signing live in `tests/admin-session.test.ts`; admin redirect-origin tests live in `tests/admin-origin.test.ts`.
+- myClawTeam Official Blogs is a Next.js App Router app using React, TypeScript, Tailwind CSS, Prisma/PostgreSQL, and S3-compatible object storage.
+- Public branding/copy is concentrated in `PRODUCT.md`, shared metadata helpers, the public homepage, and layout components.
+- The issue has no implementation dependencies and builds on the shipped public layout and homepage.
 
-## Issue #63: Trim whitespace on both username and password during admin login
-- Update the admin login route so submitted username and submitted password are trimmed before `credentialsMatch`.
-- Also trim configured `ADMIN_USERNAME` and `ADMIN_PASSWORD` before comparing, so accidental leading/trailing spaces or newlines in deployment env values do not reject otherwise-correct credentials.
-- Preserve the existing constant-time comparison helper; do not replace it with direct equality checks.
-- Add unit coverage for password whitespace handling. Prefer testing a pure helper or exported normalization/matching function so tests avoid HTTP/server setup.
+## Issue #65: Apply site branding and public copy updates
+- Treat `PRODUCT.md` as the source of truth for product naming: the brand is `myClawTeam Official Blogs`.
+- Update public-facing copy only where needed: homepage hero/empty states/article section copy, header/footer branding, SEO metadata/default descriptions, and public error/loading/not-found text.
+- Preserve existing blog/CMS behavior: featured article selection, published-post filtering, newsletter signup, signed image rendering, and `/blog/[slug]` article routes should not change.
 
 ## Module and file organization
-- Keep credential comparison primitives in `lib/admin/session.ts`.
-- If route-level matching needs to be unit-tested, expose a small helper from `lib/admin/session.ts`, such as `adminCredentialsMatch(inputUsername, inputPassword, expectedCredentials)`, and use it from `app/api/admin/login/route.ts`.
-- Add tests to `tests/admin-session.test.ts`, near existing `credentialsMatch` tests.
+- `app/(public)/page.tsx`: primary homepage hero, latest-articles section, empty-state copy, CTA labels.
+- `components/layout/site-header.tsx` and `components/layout/site-footer.tsx`: shared public navigation, brand lockup, footer newsletter/context copy.
+- `lib/metadata.ts` and `app/layout.tsx`: default site name, description, Open Graph/Twitter metadata.
+- `app/(public)/error.tsx`, `app/(public)/not-found.tsx`, `app/error.tsx`, and related route boundaries: align fallback copy with product voice if required.
+- Avoid schema, API, auth, storage, or admin workflow changes for this branding-only issue.
 
 ## Dependencies and sequencing
 - No dependency on other planned issues.
-- No schema, migration, storage, or UI changes are expected.
+- This issue should be implemented as a small UI/content pass before running `npm run lint`, `npm run test`, and `npm run build`.
 
 ## Key design decisions
-- Trim only at the login/auth comparison boundary; do not mutate environment variables globally.
-- Keep the signed cookie session format unchanged.
-- Maintain constant-time comparisons for both username and password after trimming.
+- Keep product name/casing consistent: `myClawTeam Official Blogs` for app/site identity and `myClawTeam` for organization references.
+- Do not introduce placeholder agent names, generic scaffold copy, or unrelated product positioning.
+- Prefer editing existing components and metadata constants over adding new content abstractions.
+- Keep links and routes stable (`/`, `/blog/[slug]`, `/admin`) so existing Playwright coverage remains valid.
