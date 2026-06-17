@@ -23,9 +23,6 @@ export function SiteHeader() {
             <span className="font-display text-xl font-semibold leading-none text-editorial-ink">
               myClawTeam Blog
             </span>
-            <span className="text-xs font-bold uppercase leading-none tracking-[0.08em] text-editorial-muted">
-              Official updates and engineering notes
-            </span>
           </span>
         </Link>
 

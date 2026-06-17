@@ -32,9 +32,6 @@ export function SiteFooter() {
               <span className="font-display text-xl font-semibold leading-none">
                 myClawTeam Blog
               </span>
-              <span className="text-xs font-bold uppercase leading-none tracking-[0.08em] text-editorial-dark-card-muted">
-                Official updates and engineering notes
-              </span>
             </span>
           </Link>
           <p className="max-w-md text-sm leading-6 text-editorial-dark-card-muted">
