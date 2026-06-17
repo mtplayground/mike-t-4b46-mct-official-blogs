@@ -19,9 +19,11 @@ export function SiteFooter() {
             className="flex items-center gap-3"
             href="/"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-editorial-red font-display text-base font-semibold text-editorial-white">
-              mC
-            </span>
+            <img
+              alt="myClawTeam Blog"
+              className="h-10 w-auto"
+              src="https://myclawteam.ai/logo.png"
+            />
             <span className="grid gap-1">
               <span className="font-display text-xl font-semibold leading-none">
                 myClawTeam Official Blogs
