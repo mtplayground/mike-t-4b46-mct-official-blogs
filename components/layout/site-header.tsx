@@ -19,10 +19,10 @@ export function SiteHeader() {
           </span>
           <span className="grid gap-1">
             <span className="font-display text-xl font-semibold leading-none text-editorial-ink">
-              myClawTeam
+              myClawTeam Official Blogs
             </span>
             <span className="text-xs font-bold uppercase leading-none tracking-[0.08em] text-editorial-muted">
-              Your Professional AI Engineering Team
+              Official updates and engineering notes
             </span>
           </span>
         </Link>

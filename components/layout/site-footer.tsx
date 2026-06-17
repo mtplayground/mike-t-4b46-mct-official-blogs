@@ -23,14 +23,17 @@ export function SiteFooter() {
               mC
             </span>
             <span className="grid gap-1">
-              <span className="font-display text-xl font-semibold leading-none">myClawTeam</span>
+              <span className="font-display text-xl font-semibold leading-none">
+                myClawTeam Official Blogs
+              </span>
               <span className="text-xs font-bold uppercase leading-none tracking-[0.08em] text-editorial-dark-card-muted">
-                Your Professional AI Engineering Team
+                Official updates and engineering notes
               </span>
             </span>
           </Link>
           <p className="max-w-md text-sm leading-6 text-editorial-dark-card-muted">
-            Official updates, product progress, and engineering notes from myClawTeam.
+            The official home for myClawTeam product progress, announcements, and practical
+            engineering notes.
           </p>
         </div>
 
@@ -66,7 +69,7 @@ export function SiteFooter() {
               Stay in the Loop
             </h2>
             <p className="text-sm leading-6 text-editorial-dark-card-muted">
-              Get new posts and official myClawTeam updates in your inbox.
+              Get new posts from myClawTeam Official Blogs in your inbox.
             </p>
           </div>
           <NewsletterSignupForm />
@@ -74,8 +77,8 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-white/10">
         <div className="page-shell flex flex-col gap-2 py-5 text-xs text-editorial-dark-card-muted md:flex-row md:items-center md:justify-between">
-          <p>Copyright 2026 myClawTeam. All rights reserved.</p>
-          <p>Built for clear, practical AI engineering updates.</p>
+          <p>© 2026 myClawTeam. All rights reserved.</p>
+          <p>Official updates for clear, practical AI engineering.</p>
         </div>
       </div>
     </footer>

@@ -25,7 +25,7 @@ export default function PublicError({ error, reset }: PublicErrorProps) {
           <HomeLink />
         </>
       }
-      description="The page could not be rendered. Try again, or continue from the blog index."
+      description="The myClawTeam Official Blogs page could not be rendered. Try again, or continue from the article archive."
       eyebrow="Page error"
       title="This page hit a problem."
     />

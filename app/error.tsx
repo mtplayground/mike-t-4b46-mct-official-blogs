@@ -24,7 +24,7 @@ export default function RootError({ error, reset }: RootErrorProps) {
           <HomeLink />
         </>
       }
-      description="The application could not render this request. Retry the page or return home."
+      description="myClawTeam Official Blogs could not render this request. Retry the page or return home."
       eyebrow="Application error"
       title="Something went wrong."
     />
