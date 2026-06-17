@@ -197,9 +197,6 @@ export default async function HomePage() {
                 myClawTeam.
               </p>
             </div>
-            <Link className="editorial-button" href="#articles">
-              Browse articles
-            </Link>
           </div>
 
           {posts.length > 0 ? (
