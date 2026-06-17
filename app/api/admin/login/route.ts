@@ -6,6 +6,7 @@ import {
   createAdminSession,
   credentialsMatch,
 } from "@/lib/admin/session";
+import { getAdminRedirectOrigin } from "@/lib/admin/origin";
 import { getAdminCredentials } from "@/lib/env/server";
 
 function safeAdminNext(value: FormDataEntryValue | null) {
@@ -21,18 +22,10 @@ function safeAdminNext(value: FormDataEntryValue | null) {
 }
 
 function redirectToLogin(request: Request) {
-  const url = new URL("/admin/login", getRequestOrigin(request));
+  const url = new URL("/admin/login", getAdminRedirectOrigin(request));
   url.searchParams.set("error", "invalid");
 
   return NextResponse.redirect(url);
-}
-
-function getRequestOrigin(request: Request) {
-  const host = request.headers.get("host");
-  const forwardedProtocol = request.headers.get("x-forwarded-proto");
-  const protocol = forwardedProtocol ?? new URL(request.url).protocol.replace(/:$/u, "");
-
-  return host ? `${protocol}://${host}` : request.url;
 }
 
 export async function POST(request: Request) {
@@ -51,7 +44,7 @@ export async function POST(request: Request) {
     return redirectToLogin(request);
   }
 
-  const response = NextResponse.redirect(new URL(nextPath, getRequestOrigin(request)));
+  const response = NextResponse.redirect(new URL(nextPath, getAdminRedirectOrigin(request)));
   const session = await createAdminSession(credentials.password);
 
   response.cookies.set({
