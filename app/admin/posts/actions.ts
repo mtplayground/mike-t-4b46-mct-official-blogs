@@ -8,9 +8,12 @@ import { prisma } from "@/lib/db/prisma";
 import { deletePostImage, uploadPostImage } from "@/lib/storage/object-storage";
 
 type PostFormValues = {
+  authorIntro: string;
+  authorName: string;
   body: string;
   categoryId: string;
   excerpt: string;
+  isFeatured: boolean;
   slug: string;
   status: PostStatus;
   title: string;
@@ -48,6 +51,9 @@ function parsePostForm(formData: FormData): PostFormValues | { error: string } {
   const body = getString(formData, "body");
   const categoryId = getString(formData, "categoryId");
   const excerpt = getString(formData, "excerpt");
+  const authorName = getString(formData, "authorName");
+  const authorIntro = getString(formData, "authorIntro");
+  const isFeatured = formData.get("isFeatured") === "yes";
   const slug = slugify(getString(formData, "slug") || title);
   const status = parsePostStatus(getString(formData, "status"));
 
@@ -71,10 +77,27 @@ function parsePostForm(formData: FormData): PostFormValues | { error: string } {
     return { error: "Category is required." };
   }
 
+  if (authorIntro.length > 500) {
+    return { error: "Author intro must be 500 characters or fewer." };
+  }
+
+  if (status === PostStatus.PUBLISHED) {
+    if (!authorName) {
+      return { error: "Author name is required before publishing." };
+    }
+
+    if (!authorIntro) {
+      return { error: "Author intro is required before publishing." };
+    }
+  }
+
   return {
+    authorIntro,
+    authorName,
     body,
     categoryId,
     excerpt,
+    isFeatured,
     slug,
     status,
     title,
@@ -115,6 +138,7 @@ function publishedAtForStatus(status: PostStatus, existingPublishedAt?: Date | n
 }
 
 function revalidatePostViews(slug: string, previousSlug?: string) {
+  revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/blog");
   revalidatePath(`/blog/${slug}`);
@@ -145,10 +169,23 @@ export async function createPost(formData: FormData) {
   }
 
   const coverImage = getOptionalFile(formData, "coverImage");
+  const authorAvatar = getOptionalFile(formData, "authorAvatar");
   const inlineImage = getOptionalFile(formData, "inlineImage");
+
+  if (values.status === PostStatus.PUBLISHED && !coverImage) {
+    redirectToEditor("/admin/posts/new", { error: "Cover image is required before publishing." });
+  }
+
+  if (values.status === PostStatus.PUBLISHED && !authorAvatar) {
+    redirectToEditor("/admin/posts/new", {
+      error: "Author avatar is required before publishing.",
+    });
+  }
+
   const uploadedKeys: string[] = [];
   let body = values.body;
   let coverImageKey: string | null = null;
+  let authorAvatarKey: string | null = null;
   let createdPost: {
     slug: string;
     title: string;
@@ -161,6 +198,12 @@ export async function createPost(formData: FormData) {
       uploadedKeys.push(uploadedCover.key);
     }
 
+    if (authorAvatar) {
+      const uploadedAvatar = await uploadImageFile(authorAvatar);
+      authorAvatarKey = uploadedAvatar.key;
+      uploadedKeys.push(uploadedAvatar.key);
+    }
+
     if (inlineImage) {
       const uploadedInline = await uploadImageFile(inlineImage);
       uploadedKeys.push(uploadedInline.key);
@@ -169,10 +212,14 @@ export async function createPost(formData: FormData) {
 
     createdPost = await prisma.post.create({
       data: {
+        authorAvatarKey,
+        authorIntro: values.authorIntro,
+        authorName: values.authorName,
         body,
         categoryId: values.categoryId,
         coverImageKey,
         excerpt: values.excerpt,
+        isFeatured: values.isFeatured,
         publishedAt: publishedAtForStatus(values.status),
         slug: values.slug,
         status: values.status,
@@ -218,6 +265,7 @@ export async function updatePost(formData: FormData) {
   }
 
   let existingPost: {
+    authorAvatarKey: string | null;
     coverImageKey: string | null;
     publishedAt: Date | null;
     slug: string;
@@ -226,6 +274,7 @@ export async function updatePost(formData: FormData) {
   try {
     existingPost = await prisma.post.findUnique({
       select: {
+        authorAvatarKey: true,
         coverImageKey: true,
         publishedAt: true,
         slug: true,
@@ -244,19 +293,39 @@ export async function updatePost(formData: FormData) {
   }
 
   const coverImage = getOptionalFile(formData, "coverImage");
+  const authorAvatar = getOptionalFile(formData, "authorAvatar");
   const inlineImage = getOptionalFile(formData, "inlineImage");
   const removeCover = formData.get("removeCover") === "yes";
+  const removeAuthorAvatar = formData.get("removeAuthorAvatar") === "yes";
   const uploadedKeys: string[] = [];
   const oldCoverKey = existingPost.coverImageKey;
+  const oldAuthorAvatarKey = existingPost.authorAvatarKey;
   let nextCoverImageKey = removeCover ? null : oldCoverKey;
+  let nextAuthorAvatarKey = removeAuthorAvatar ? null : oldAuthorAvatarKey;
   let body = values.body;
   let databaseUpdated = false;
+
+  if (values.status === PostStatus.PUBLISHED && !nextCoverImageKey && !coverImage) {
+    redirectToEditor(editorPath, { error: "Cover image is required before publishing." });
+  }
+
+  if (values.status === PostStatus.PUBLISHED && !nextAuthorAvatarKey && !authorAvatar) {
+    redirectToEditor(editorPath, {
+      error: "Author avatar is required before publishing.",
+    });
+  }
 
   try {
     if (coverImage) {
       const uploadedCover = await uploadImageFile(coverImage);
       nextCoverImageKey = uploadedCover.key;
       uploadedKeys.push(uploadedCover.key);
+    }
+
+    if (authorAvatar) {
+      const uploadedAvatar = await uploadImageFile(authorAvatar);
+      nextAuthorAvatarKey = uploadedAvatar.key;
+      uploadedKeys.push(uploadedAvatar.key);
     }
 
     if (inlineImage) {
@@ -267,10 +336,14 @@ export async function updatePost(formData: FormData) {
 
     await prisma.post.update({
       data: {
+        authorAvatarKey: nextAuthorAvatarKey,
+        authorIntro: values.authorIntro,
+        authorName: values.authorName,
         body,
         categoryId: values.categoryId,
         coverImageKey: nextCoverImageKey,
         excerpt: values.excerpt,
+        isFeatured: values.isFeatured,
         publishedAt: publishedAtForStatus(values.status, existingPost.publishedAt),
         slug: values.slug,
         status: values.status,
@@ -300,6 +373,14 @@ export async function updatePost(formData: FormData) {
       await deletePostImage(oldCoverKey);
     } catch (error) {
       console.error("Failed to delete replaced cover image", error);
+    }
+  }
+
+  if (oldAuthorAvatarKey && oldAuthorAvatarKey !== nextAuthorAvatarKey) {
+    try {
+      await deletePostImage(oldAuthorAvatarKey);
+    } catch (error) {
+      console.error("Failed to delete replaced author avatar", error);
     }
   }
 

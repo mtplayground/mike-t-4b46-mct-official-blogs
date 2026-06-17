@@ -23,6 +23,7 @@ function getPostId(formData: FormData) {
 }
 
 function revalidatePostViews(slug: string) {
+  revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/blog");
   revalidatePath(`/blog/${slug}`);
@@ -31,6 +32,10 @@ function revalidatePostViews(slug: string) {
 export async function publishPost(formData: FormData) {
   const postId = getPostId(formData);
   let existingPost: {
+    authorAvatarKey: string | null;
+    authorIntro: string;
+    authorName: string;
+    coverImageKey: string | null;
     publishedAt: Date | null;
     slug: string;
     title: string;
@@ -39,6 +44,10 @@ export async function publishPost(formData: FormData) {
   try {
     existingPost = await prisma.post.findUnique({
       select: {
+        authorAvatarKey: true,
+        authorIntro: true,
+        authorName: true,
+        coverImageKey: true,
         publishedAt: true,
         slug: true,
         title: true,
@@ -54,6 +63,22 @@ export async function publishPost(formData: FormData) {
 
   if (!existingPost) {
     redirectToAdmin({ error: "Post not found." });
+  }
+
+  if (!existingPost.coverImageKey) {
+    redirectToAdmin({ error: "Cover image is required before publishing." });
+  }
+
+  if (!existingPost.authorName.trim()) {
+    redirectToAdmin({ error: "Author name is required before publishing." });
+  }
+
+  if (!existingPost.authorIntro.trim()) {
+    redirectToAdmin({ error: "Author intro is required before publishing." });
+  }
+
+  if (!existingPost.authorAvatarKey) {
+    redirectToAdmin({ error: "Author avatar is required before publishing." });
   }
 
   try {
@@ -129,6 +154,7 @@ export async function deletePost(formData: FormData) {
   }
 
   let existingPost: {
+    authorAvatarKey: string | null;
     coverImageKey: string | null;
     slug: string;
     title: string;
@@ -137,6 +163,7 @@ export async function deletePost(formData: FormData) {
   try {
     existingPost = await prisma.post.findUnique({
       select: {
+        authorAvatarKey: true,
         coverImageKey: true,
         slug: true,
         title: true,
@@ -157,6 +184,10 @@ export async function deletePost(formData: FormData) {
   try {
     if (existingPost.coverImageKey) {
       await deletePostImage(existingPost.coverImageKey);
+    }
+
+    if (existingPost.authorAvatarKey) {
+      await deletePostImage(existingPost.authorAvatarKey);
     }
 
     await prisma.post.delete({
