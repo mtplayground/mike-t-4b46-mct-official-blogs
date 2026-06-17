@@ -4,7 +4,7 @@ import { NewsletterSignupForm } from "@/components/newsletter/newsletter-signup-
 
 const footerLinks = [
   { href: "/", label: "Home" },
-  { href: "/admin", label: "Admin" },
+  { href: "/admin/login", label: "Admin" },
 ];
 
 const categoryLabels = ["Thoughts", "Product Progress", "Announcements"];
@@ -44,7 +44,11 @@ export function SiteFooter() {
           <ul className="grid gap-3 text-sm text-editorial-dark-card-muted">
             {footerLinks.map((item) => (
               <li key={item.href}>
-                <Link className="transition hover:text-editorial-white" href={item.href}>
+                <Link
+                  className="transition hover:text-editorial-white"
+                  href={item.href}
+                  prefetch={false}
+                >
                   {item.label}
                 </Link>
               </li>
