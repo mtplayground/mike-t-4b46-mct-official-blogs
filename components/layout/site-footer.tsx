@@ -15,7 +15,7 @@ export function SiteFooter() {
       <div className="page-shell grid gap-10 py-12 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.35fr]">
         <div className="stack">
           <Link
-            aria-label="myClawTeam Official Blogs home"
+            aria-label="myClawTeam Blog home"
             className="flex items-center gap-3"
             href="/"
           >
@@ -26,7 +26,7 @@ export function SiteFooter() {
             />
             <span className="grid gap-1">
               <span className="font-display text-xl font-semibold leading-none">
-                myClawTeam Official Blogs
+                myClawTeam Blog
               </span>
               <span className="text-xs font-bold uppercase leading-none tracking-[0.08em] text-editorial-dark-card-muted">
                 Official updates and engineering notes
@@ -75,7 +75,7 @@ export function SiteFooter() {
               Stay in the Loop
             </h2>
             <p className="text-sm leading-6 text-editorial-dark-card-muted">
-              Get new posts from myClawTeam Official Blogs in your inbox.
+              Get new posts from myClawTeam Blog in your inbox.
             </p>
           </div>
           <NewsletterSignupForm />

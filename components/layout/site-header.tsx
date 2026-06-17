@@ -10,7 +10,7 @@ export function SiteHeader() {
     <header className="border-b border-editorial-line bg-editorial-white">
       <div className="page-shell flex flex-col gap-5 py-5 md:flex-row md:items-center md:justify-between">
         <Link
-          aria-label="myClawTeam Official Blogs home"
+          aria-label="myClawTeam Blog home"
           className="flex items-center gap-3"
           href="/"
         >
@@ -21,7 +21,7 @@ export function SiteHeader() {
           />
           <span className="grid gap-1">
             <span className="font-display text-xl font-semibold leading-none text-editorial-ink">
-              myClawTeam Official Blogs
+              myClawTeam Blog
             </span>
             <span className="text-xs font-bold uppercase leading-none tracking-[0.08em] text-editorial-muted">
               Official updates and engineering notes
