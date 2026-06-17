@@ -158,7 +158,7 @@ export default async function HomePage() {
                 </h1>
                 <p className="text-lead text-editorial-muted">{heroPost.excerpt}</p>
                 <Link className="editorial-button w-fit" href={`/blog/${heroPost.slug}`}>
-                  Read featured article
+                  Read article
                 </Link>
               </div>
               <Link
