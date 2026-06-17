@@ -8,9 +8,9 @@ import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
 export const revalidate = 300;
 
 export const metadata = buildPageMetadata({
-  title: "Practical AI engineering, written in the open",
+  title: "Official myClawTeam updates and practical AI engineering notes",
   description:
-    "Field notes, product progress, and announcements from the team building dependable AI-powered software.",
+    "Official updates, product progress, announcements, and engineering notes from myClawTeam.",
   path: "/",
 });
 
@@ -151,7 +151,7 @@ export default async function HomePage() {
           {heroPost ? (
             <>
               <div className="stack max-w-3xl">
-                <p className="eyebrow">Featured Article</p>
+                <p className="eyebrow">myClawTeam Official Blogs / Featured Article</p>
                 <PostMeta post={heroPost} />
                 <h1 className="text-[3rem] font-display font-semibold leading-[3.2rem] text-editorial-ink md:text-heading-lg">
                   {heroPost.title}
@@ -175,10 +175,11 @@ export default async function HomePage() {
             <div className="stack max-w-3xl lg:col-span-2">
               <p className="eyebrow">myClawTeam Official Blogs</p>
               <h1 className="text-[3rem] font-display font-semibold leading-[3.2rem] text-editorial-ink md:text-heading-lg">
-                Practical AI engineering, written in the open.
+                Official myClawTeam updates, product progress, and engineering notes.
               </h1>
               <p className="text-lead text-editorial-muted">
-                Published articles will appear here once the editorial archive has a live post.
+                Official myClawTeam articles will appear here once the editorial archive has a live
+                post.
               </p>
             </div>
           )}
@@ -189,11 +190,11 @@ export default async function HomePage() {
         <div className="page-shell grid gap-10">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div className="stack max-w-3xl">
-              <p className="eyebrow">Latest Articles</p>
-              <h2 className="text-heading-md">Read the official journal.</h2>
+              <p className="eyebrow">Official Journal</p>
+              <h2 className="text-heading-md">Read the latest from myClawTeam Official Blogs.</h2>
               <p className="text-lead text-editorial-muted">
-                Field notes, product progress, and announcements from the team building dependable
-                AI-powered software.
+                Official updates, product progress, announcements, and engineering notes from
+                myClawTeam.
               </p>
             </div>
             <Link className="editorial-button" href="#articles">
@@ -209,7 +210,7 @@ export default async function HomePage() {
             </div>
           ) : (
             <div className="rounded-card border border-editorial-line bg-editorial-cream p-8 text-editorial-muted">
-              Published posts will appear here after the archive is seeded.
+              Official myClawTeam posts will appear here after the archive is seeded.
             </div>
           )}
         </div>
