@@ -84,7 +84,6 @@ export function SiteFooter() {
       <div className="border-t border-white/10">
         <div className="page-shell flex flex-col gap-2 py-5 text-xs text-editorial-dark-card-muted md:flex-row md:items-center md:justify-between">
           <p>© 2026 myClawTeam. All rights reserved.</p>
-          <p>Official updates for clear, practical AI engineering.</p>
         </div>
       </div>
     </footer>
