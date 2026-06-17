@@ -15,7 +15,6 @@ node_modules/
 .next/
 .db_decision
 .storage_decision
-
 .deploy_url
 verify-screenshot.png
 ui-verify.js

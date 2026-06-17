@@ -1,28 +1,27 @@
-# Architecture plan for Issue #65
+# Architecture plan for Issues #67-#72
 
 ## Project context
 - myClawTeam Official Blogs is a Next.js App Router app using React, TypeScript, Tailwind CSS, Prisma/PostgreSQL, and S3-compatible object storage.
-- Public branding/copy is concentrated in `PRODUCT.md`, shared metadata helpers, the public homepage, and layout components.
-- The issue has no implementation dependencies and builds on the shipped public layout and homepage.
-
-## Issue #65: Apply site branding and public copy updates
-- Treat `PRODUCT.md` as the source of truth for product naming: the brand is `myClawTeam Official Blogs`.
-- Update public-facing copy only where needed: homepage hero/empty states/article section copy, header/footer branding, SEO metadata/default descriptions, and public error/loading/not-found text.
-- Preserve existing blog/CMS behavior: featured article selection, published-post filtering, newsletter signup, signed image rendering, and `/blog/[slug]` article routes should not change.
+- The requested batch is a focused public branding/navigation copy pass. It should not change database schema, auth/session behavior, post publishing logic, newsletter persistence, or storage handling.
+- Product naming for this batch is explicit in Issue #68: visible and metadata brand should be `myClawTeam Blog`.
 
 ## Module and file organization
-- `app/(public)/page.tsx`: primary homepage hero, latest-articles section, empty-state copy, CTA labels.
-- `components/layout/site-header.tsx` and `components/layout/site-footer.tsx`: shared public navigation, brand lockup, footer newsletter/context copy.
-- `lib/metadata.ts` and `app/layout.tsx`: default site name, description, Open Graph/Twitter metadata.
-- `app/(public)/error.tsx`, `app/(public)/not-found.tsx`, `app/error.tsx`, and related route boundaries: align fallback copy with product voice if required.
-- Avoid schema, API, auth, storage, or admin workflow changes for this branding-only issue.
+- `components/layout/site-header.tsx`: replace the `mC` badge with the hosted logo image, update visible brand text to `myClawTeam Blog`, and preserve the existing Home/Admin navigation behavior.
+- `components/layout/site-footer.tsx`: replace the footer badge with the hosted logo image, update visible brand text to `myClawTeam Blog`, remove the requested tagline sentence, and render footer category labels as `Link` components to their category routes.
+- `lib/metadata.ts`: update `siteName` to `myClawTeam Blog`; keep existing metadata helper shape and default description unless a specific issue requires more copy changes.
+- `app/(public)/page.tsx`: remove the `Browse articles` CTA from the Latest Articles section and change the hero CTA text from `Read featured article` to `Read article` without altering routing or featured-post selection.
+- No shared types or new dependencies are required; use existing Next.js `Link` and ordinary `img` markup for the hosted logo.
 
 ## Dependencies and sequencing
-- No dependency on other planned issues.
-- This issue should be implemented as a small UI/content pass before running `npm run lint`, `npm run test`, and `npm run build`.
+1. Apply the brand rename in metadata/header/footer first (#68) so subsequent copy edits use the correct name.
+2. Replace header/footer badges with the hosted logo (#67), adjacent to the brand text changes.
+3. Update footer-specific content and links (#70, #71).
+4. Update homepage CTAs (#69, #72).
+- These issues are independent UI/content changes and can be implemented without migrations or data backfills.
 
 ## Key design decisions
-- Keep product name/casing consistent: `myClawTeam Official Blogs` for app/site identity and `myClawTeam` for organization references.
-- Do not introduce placeholder agent names, generic scaffold copy, or unrelated product positioning.
-- Prefer editing existing components and metadata constants over adding new content abstractions.
-- Keep links and routes stable (`/`, `/blog/[slug]`, `/admin`) so existing Playwright coverage remains valid.
+- Use the exact issue-provided logo markup intent: hosted `https://myclawteam.ai/logo.png`, alt text `myClawTeam Blog`, `h-11 w-auto` in the header and `h-10 w-auto` in the footer.
+- Use exactly `myClawTeam Blog` for the site title and visible brand text; do not retain `myClawTeam Official Blogs` in those locations after Issue #68.
+- Footer category links should point to `/blog/category/thoughts`, `/blog/category/product-progress`, and `/blog/category/announcements`; current redirects to `/` are acceptable and should not be changed in this batch.
+- Keep existing styling tokens and layout structure; make the smallest JSX/text edits needed.
+- Validate with `npm run lint`, `npm run test`, and `npm run build` after implementing issue changes.
