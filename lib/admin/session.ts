@@ -69,3 +69,18 @@ export async function verifyAdminSession(value: string | undefined, secret: stri
 export function credentialsMatch(input: string, expected: string) {
   return constantTimeEqual(input, expected);
 }
+
+type AdminCredentialValues = {
+  password: string;
+  username: string;
+};
+
+export function adminCredentialsMatch(
+  input: AdminCredentialValues,
+  expected: AdminCredentialValues,
+) {
+  return (
+    credentialsMatch(input.username.trim(), expected.username.trim()) &&
+    credentialsMatch(input.password.trim(), expected.password.trim())
+  );
+}
