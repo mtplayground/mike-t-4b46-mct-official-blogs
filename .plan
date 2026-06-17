@@ -1,98 +1,41 @@
-Architecture plan for Issues #47-#52
+# Architecture plan for Issues #59 and #60
 
-Context
-- App: myClawTeam Official Blogs, a Next.js App Router + TypeScript editorial blog/CMS.
-- Persistence: PostgreSQL through Prisma. Posts, categories, and subscribers already exist.
-- Binary storage: S3-compatible object storage already handles post cover/inline images through lib/storage/object-storage.ts.
-- Admin: custom HMAC cookie session, protected by proxy.ts. Admin mutations are server actions.
+## Project context
+- Next.js App Router + React + TypeScript blog application.
+- Prisma/PostgreSQL stores posts, categories, and subscribers.
+- Private S3-compatible object storage stores post images as relative keys; read URLs are signed server-side through `lib/storage/object-storage.ts`.
+- Public post detail page currently parses article bodies manually by splitting paragraphs and recognizing only exact `![alt](storage:key)` paragraphs.
 
-Module structure and file organization
-1. Data/model layer
-   - prisma/schema.prisma
-     - Extend Post with:
-       - isFeatured Boolean @default(false) mapped to is_featured if following existing snake_case convention.
-       - authorName String mapped to author_name.
-       - authorIntro String @db.VarChar(500) mapped to author_intro.
-       - authorAvatarKey String? mapped to author_avatar_key.
-     - Add a migration under prisma/migrations for the new columns.
-   - prisma/seed.ts
-     - Populate featured and author fields for all sample posts.
-     - Ensure any sample published posts have required cover/author data after Issue #48.
+## Issue #59: Render article bodies as Markdown with signed inline images
+- Add Markdown rendering dependencies: `react-markdown` and `remark-gfm`.
+- Add `lib/content/markdown.ts` as the shared preprocessing module.
+  - Export `getSignedMarkdownBody(body, signer?)`.
+  - The default signer should call `getSignedPostImageUrl`.
+  - Find Markdown image destinations using the `storage:<relative-key>` convention.
+  - Replace successful `storage:` URLs with signed read URLs.
+  - If signing fails for one image, leave that reference unchanged and continue processing the rest.
+- Replace the manual `BodyBlock` parser/rendering in `app/(public)/blog/[slug]/page.tsx` with `<ReactMarkdown>`.
+  - Keep signing server-side before rendering.
+  - Theme Markdown components to match the current editorial design for paragraphs, headings, lists, links, blockquotes, inline code, code blocks, and images.
+  - Preserve existing cover image and author-card behavior.
 
-2. Shared post/content helpers
-   - lib/content/posts.ts
-     - Keep published visibility helpers centralized.
-     - Add reusable select/include shapes or helper functions only if multiple pages need the same featured/latest queries.
-     - Preserve the invariant: public visibility means status PUBLISHED and publishedAt is not null.
+## Issue #60: Unit-test Markdown storage-image preprocessing
+- Add focused Node test coverage for `lib/content/markdown.ts`.
+- Tests should cover:
+  - Plain Markdown passes through unchanged.
+  - One `storage:` image is replaced with the signed URL returned by the signer.
+  - Multiple `storage:` references are all processed.
+  - A signer failure leaves that specific reference unchanged and does not prevent other references from being signed.
+- Keep signer injectable so tests do not need S3 credentials or network access.
 
-3. Storage helpers
-   - lib/storage/object-storage.ts
-     - Reuse existing uploadPostImage, getSignedPostImageUrl, and deletePostImage for author avatars unless issue implementation benefits from a thin semantic wrapper such as uploadAuthorAvatar/deletePostImage alias.
-     - Keep database values as relative object keys without OBJECT_STORAGE_PREFIX.
-     - Delete old avatar objects when replacing/removing avatars and when deleting posts.
+## Dependencies and sequencing
+- Issue #60 depends on the helper introduced by Issue #59.
+- Implement Issue #59 first so the module and public rendering integration exist.
+- Implement Issue #60 second to lock down helper behavior and failure handling.
 
-4. Admin editor and mutations
-   - app/admin/posts/_components/post-editor-form.tsx
-     - Add featured checkbox.
-     - Add author name, author intro, author avatar upload, existing avatar preview/details, and remove-avatar checkbox on edit.
-     - Keep cover image input and make UI communicate that cover and author fields are required only for published posts.
-   - app/admin/posts/actions.ts
-     - Extend PostFormValues and parsing/validation.
-     - Validate authorName and authorIntro for published posts.
-     - Enforce cover image for published posts, counting an existing cover as valid on edit unless remove/replace leaves none.
-     - Upload avatar, clean up newly uploaded files on failure, delete replaced/removed old avatars after successful DB update.
-     - Include avatar deletion in deletePost alongside cover deletion.
-   - app/admin/page.tsx
-     - Include featured/author data if useful for dashboard display, but avoid unnecessary UI churn unless required.
-
-5. Public homepage and article pages
-   - app/(public)/page.tsx
-     - Replace current multi-section homepage with:
-       - Hero using most recently published featured post.
-       - Fallback hero using latest published post when no featured post exists.
-       - Article card grid using signed cover URLs, title, excerpt, category, publication date, and links to /blog/[slug].
-     - Resolve signed cover URLs server-side. Do not expose storage keys directly.
-     - Decide what to render when no published posts exist: an empty/placeholder editorial state that keeps layout stable.
-   - app/(public)/blog/[slug]/page.tsx
-     - Render cover figure only if coverImageKey exists.
-     - Remove fixed /images/editorial-hero.png fallback from page and JSON-LD.
-     - Add author block beneath article body using signed avatar if authorAvatarKey exists, plus authorName and authorIntro.
-     - Update JSON-LD author to use post.authorName and include image only when a real cover exists.
-
-6. Retired listing routes and navigation
-   - app/(public)/blog/page.tsx
-   - app/(public)/blog/page/[page]/page.tsx
-   - app/(public)/blog/category/[category]/page.tsx
-   - app/(public)/blog/category/[category]/page/[page]/page.tsx
-     - Redirect all listing/category/pagination routes to / while preserving /blog/[slug].
-   - components/layout/site-header.tsx and site-footer.tsx
-     - Remove links that imply a blog index/archive route.
-   - app/sitemap.ts
-     - Drop blog index/category/page listing URLs.
-     - Keep published post detail URLs.
-
-7. Tests
-   - tests/content-visibility.test.ts
-     - Update fixtures/expectations for required published fields if helper logic changes.
-   - tests/admin-session.test.ts and tests/newsletter.test.ts
-     - No expected changes unless shared setup changes.
-   - e2e/publish-public-view.spec.ts
-     - Update admin publishing flow for cover and author requirements.
-     - Assert homepage hero/card grid, /blog redirect to /, detail author block, and absence of fixed fallback banner.
-
-Dependencies between issues
-- #47 is foundational: schema/migration/seed fields must land before admin/public UI relies on them.
-- #48 depends on #47: admin editor/server actions parse, validate, upload, clean up, and persist the new fields.
-- #49 depends on #47 and should coordinate with #48 validation: homepage uses isFeatured and required cover data for published posts.
-- #50 depends on #47 and storage behavior from #48: detail page renders author block/avatar and no fixed fallback cover.
-- #51 depends on #49: once homepage is the primary article discovery surface, retire listing routes and navigation/sitemap entries.
-- #52 depends on all prior issues: tests should reflect the final public/admin flow.
-
-Key design decisions
-- Postgres remains the source of truth; Prisma migrations are required for model changes.
-- Use existing S3-compatible object storage for covers and avatars; store only relative keys in Post rows.
-- Do not introduce a separate Author model unless later requirements need reusable authors. Issue scope asks for per-post author fields.
-- Keep public pages server-rendered and sign private image URLs server-side.
-- Preserve published visibility semantics and add stricter publish-time validation rather than hiding malformed published posts later.
-- Keep route compatibility for article details at /blog/[slug], while redirecting only index/listing/category routes.
-- Avoid adding new dependencies unless needed; current stack is sufficient.
+## Key design decisions
+- Store post bodies unchanged in PostgreSQL; transform only at render time.
+- Keep database storage keys relative and continue applying `OBJECT_STORAGE_PREFIX` only inside the object-storage helper.
+- Do not expose object-storage credentials or raw full object keys to the browser.
+- Prefer a small string preprocessor over changing the persisted Markdown schema.
+- Keep Markdown rendering server-side in the App Router detail page to avoid client-side signing or credential exposure.
