@@ -121,6 +121,13 @@ export function getObjectStorageEnv(): ObjectStorageEnv {
   return cachedObjectStorageEnv;
 }
 
+export function resetServerEnvCacheForTests() {
+  cachedDatabaseUrl = undefined;
+  cachedSelfUrl = undefined;
+  cachedAdminCredentials = undefined;
+  cachedObjectStorageEnv = undefined;
+}
+
 export function getRequiredServerEnv(): RequiredServerEnv {
   return {
     databaseUrl: getDatabaseUrl(),
