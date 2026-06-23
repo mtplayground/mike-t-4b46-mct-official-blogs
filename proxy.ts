@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/admin/session";
+import { getAdminCredentials } from "@/lib/env/server";
 
 const ADMIN_LOGIN_PATH = "/admin/login";
 
@@ -12,7 +13,8 @@ export async function proxy(request: NextRequest) {
   }
 
   const session = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  const isAuthenticated = await verifyAdminSession(session, process.env.ADMIN_PASSWORD);
+  const { password: adminSessionSecret } = getAdminCredentials();
+  const isAuthenticated = await verifyAdminSession(session, adminSessionSecret);
 
   if (isAuthenticated) {
     return NextResponse.next();
