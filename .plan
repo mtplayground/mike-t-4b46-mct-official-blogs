@@ -1,27 +1,27 @@
-Architecture plan for issues #79-#80
+Architecture plan for issue #83
 
 Project shape:
-- Existing Next.js App Router app for myClawTeam Blog.
-- Layout components live under components/layout/.
-- App Router metadata and special files live under app/.
-- Product contract and naming source is PRODUCT.md; visible brand remains "myClawTeam Blog".
+- Existing Next.js App Router application for myClawTeam Blog.
+- Admin authentication is implemented with first-party username/password credentials and an HTTP-only admin session cookie.
+- Credential resolution currently lives in `lib/env/server.ts`; session creation and verification helpers live in `lib/admin/session.ts`; admin route protection is enforced by `proxy.ts`.
 
-Issue #79 — favicon:
-- Add an App Router icon special file at app/icon.svg, derived from the myClawTeam brand mark/logo rather than a generic placeholder.
-- Keep it self-contained in the repo so Next.js automatically emits the correct head metadata.
-- Verify with the built app that the icon route/head link resolves.
+Issue #83 — align admin session verification credential source:
+- Update `proxy.ts` so admin session verification obtains the signing secret from the same credential accessor used by the login route: `getAdminCredentials()`.
+- This keeps login and proxy verification consistent when admin credentials are explicitly configured with `ADMIN_USERNAME`/`ADMIN_PASSWORD` and when they are derived from `JWT_SECRET`.
+- Preserve the existing admin cookie name, session format, and route matcher behavior.
 
-Issue #80 — header/footer subtitle removal:
-- Edit components/layout/site-header.tsx and components/layout/site-footer.tsx only.
-- Remove the subtitle span text "Official updates and engineering notes" from logo/title blocks.
-- Preserve the logo image, "myClawTeam Blog" visible brand text, existing links, styling structure, and homepage/metadata copy.
+Module/file organization:
+- `lib/env/server.ts`: central credential/env accessor. If needed, refine validation so `ADMIN_USERNAME` and `ADMIN_PASSWORD` must be supplied together, while keeping the JWT-derived fallback when both are omitted.
+- `app/api/admin/login/route.ts`: should remain the source of session creation using `getAdminCredentials().password`.
+- `proxy.ts`: should call `getAdminCredentials()` and pass `.password` to `verifyAdminSession()` rather than reading `process.env.ADMIN_PASSWORD` directly.
+- Tests should live in `tests/` and cover both explicit env credentials and fallback-derived credentials for session verification.
 
 Dependencies and sequencing:
-- The two issues are independent UI/static asset changes.
-- #79 can be implemented without touching layout components.
-- #80 should avoid metadata/homepage copy changes and only alter the specified header/footer subtitle nodes.
+- Single-issue batch. No schema, storage, public UI, or deployment topology changes are required.
+- The proxy change depends on the credential accessor being usable in the proxy runtime. Keep imports minimal and avoid adding Node-only APIs to `proxy.ts` itself.
 
-Key decisions:
-- Use native Next.js App Router conventions instead of custom head management.
-- Keep changes minimal and targeted to reduce risk to deployed blog/admin behavior.
-- No new persistent storage, auth, or runtime service changes are required for either issue.
+Key design decisions:
+- Use one credential source for all admin auth paths to avoid split-brain session signing/verification.
+- Fail loudly when only one of `ADMIN_USERNAME` or `ADMIN_PASSWORD` is configured.
+- Do not introduce OAuth, user accounts, a custom JWT layer, or additional persistent state for this issue.
+- Validate with `npm run test` and `npm run build`.
