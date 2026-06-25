@@ -2,6 +2,7 @@ import { Category, Post, PostStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { createPost, updatePost } from "../actions";
+import { PostUploadSizeWarning } from "./post-upload-size-warning";
 
 type PostEditorFormProps = {
   categories: Pick<Category, "id" | "name">[];
@@ -31,7 +32,7 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
   const isEditing = Boolean(post);
 
   return (
-    <form action={formAction(post)} className="grid gap-8">
+    <form action={formAction(post)} className="grid gap-8" encType="multipart/form-data">
       {post ? <input name="postId" type="hidden" value={post.id} /> : null}
 
       {error ? (
@@ -39,6 +40,8 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
           {error}
         </p>
       ) : null}
+
+      <PostUploadSizeWarning />
 
       <div className="grid gap-5 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial">
         <label className="grid gap-2">
