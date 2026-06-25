@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
 import { getSignedMarkdownBody } from "@/lib/content/markdown";
 import { prisma } from "@/lib/db/prisma";
 import { absoluteSiteUrl, buildPageMetadata, siteName } from "@/lib/metadata";
@@ -262,13 +263,11 @@ export default async function PostPage({ params }: PostPageProps) {
         <section className="section section-white">
           <div className="page-shell grid gap-12">
             {coverImageUrl ? (
-              <figure className="overflow-hidden rounded-card border border-editorial-line bg-editorial-cream shadow-editorial">
+              <figure
+                className={`${coverMediaFrameClassName} rounded-card border border-editorial-line shadow-editorial`}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element -- Signed private cover URLs are resolved at render time. */}
-                <img
-                  alt=""
-                  className="h-[360px] w-full object-cover md:h-[520px]"
-                  src={coverImageUrl}
-                />
+                <img alt="" className={coverMediaImageClassName} src={coverImageUrl} />
               </figure>
             ) : null}
 
