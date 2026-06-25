@@ -245,7 +245,7 @@ export default async function PostPage({ params }: PostPageProps) {
                   {post.publishedAt ? dateFormatter.format(post.publishedAt) : "Unscheduled"}
                 </time>
               </div>
-              <h1 className="max-w-4xl text-heading-lg">{post.title}</h1>
+              <h1 className="max-w-4xl text-heading-md">{post.title}</h1>
               <p className="max-w-3xl text-lead text-editorial-muted">{post.excerpt}</p>
             </div>
           </div>
