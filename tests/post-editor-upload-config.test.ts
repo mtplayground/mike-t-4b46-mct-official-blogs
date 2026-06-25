@@ -14,7 +14,18 @@ test("post editor form submits image fields as multipart form data", async () =>
   const source = await readFile("app/admin/posts/_components/post-editor-form.tsx", "utf8");
 
   assert.match(source, /encType="multipart\/form-data"/);
+  assert.match(source, /CoverImageCropper/);
   assert.match(source, /PostUploadSizeWarning/);
+});
+
+test("cover image cropper preserves the coverImage multipart field", async () => {
+  const source = await readFile("app/admin/posts/_components/cover-image-cropper.tsx", "utf8");
+
+  assert.match(source, /aspect-\[16\/9\]/);
+  assert.match(source, /canvas\.toBlob/);
+  assert.match(source, /new File/);
+  assert.match(source, /name="coverImage"/);
+  assert.match(source, /form\.requestSubmit/);
 });
 
 test("post editor surfaces a clear client-side message for oversized multipart image selections", async () => {

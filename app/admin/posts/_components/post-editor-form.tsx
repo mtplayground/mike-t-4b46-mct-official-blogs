@@ -2,6 +2,7 @@ import { Category, Post, PostStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { createPost, updatePost } from "../actions";
+import { CoverImageCropper } from "./cover-image-cropper";
 import { PostUploadSizeWarning } from "./post-upload-size-warning";
 
 type PostEditorFormProps = {
@@ -137,15 +138,7 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
           Featured article
         </label>
 
-        <label className="grid gap-2">
-          <span className="text-sm font-bold uppercase text-editorial-ink">Cover image</span>
-          <input
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="rounded-button border border-editorial-line bg-editorial-white px-4 py-3 text-sm"
-            name="coverImage"
-            type="file"
-          />
-        </label>
+        <CoverImageCropper />
 
         {post?.coverImageKey ? (
           <label className="flex items-center gap-3 text-sm text-editorial-muted">
