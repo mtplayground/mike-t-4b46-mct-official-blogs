@@ -1,6 +1,7 @@
 import { PostStatus, type Category, type Post } from "@prisma/client";
 import Link from "next/link";
 
+import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
 import { prisma } from "@/lib/db/prisma";
 import { buildPageMetadata } from "@/lib/metadata";
 import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
@@ -95,7 +96,7 @@ async function getHomepagePosts() {
 function PostImage({ alt, src }: { alt: string; src: string | null }) {
   if (!src) {
     return (
-      <div className="flex min-h-[260px] items-center justify-center bg-editorial-cream px-6 text-center text-sm font-bold uppercase tracking-[0.18em] text-editorial-muted">
+      <div className="flex h-full w-full items-center justify-center bg-editorial-cream px-6 text-center text-sm font-bold uppercase tracking-[0.18em] text-editorial-muted">
         Cover image pending
       </div>
     );
@@ -103,7 +104,7 @@ function PostImage({ alt, src }: { alt: string; src: string | null }) {
 
   return (
     // eslint-disable-next-line @next/next/no-img-element -- Private object storage images are signed server-side before render.
-    <img alt={alt} className="h-full w-full object-cover" src={src} />
+    <img alt={alt} className={coverMediaImageClassName} src={src} />
   );
 }
 
@@ -121,7 +122,7 @@ function ArticleCard({ post }: { post: HomepagePost }) {
   return (
     <article className="group grid overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial transition hover:-translate-y-1 hover:shadow-lg">
       <Link className="grid h-full" href={`/blog/${post.slug}`}>
-        <figure className="h-64 overflow-hidden bg-editorial-cream">
+        <figure className={coverMediaFrameClassName}>
           <PostImage alt="" src={post.coverImageUrl} />
         </figure>
         <div className="grid content-between gap-8 p-6">
