@@ -191,11 +191,6 @@ export default async function HomePage() {
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div className="stack max-w-3xl">
               <p className="eyebrow">Official Journal</p>
-              <h2 className="text-heading-md">Read the latest from myClawTeam Official Blogs.</h2>
-              <p className="text-lead text-editorial-muted">
-                Official updates, product progress, announcements, and engineering notes from
-                myClawTeam.
-              </p>
             </div>
           </div>
 
