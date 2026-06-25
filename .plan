@@ -1,21 +1,21 @@
-Architecture plan for Issue #85: Raise Server Actions body-size limit so post image uploads succeed
+Architecture plan for issues #87-#92
 
 Project shape
-- Next.js App Router application with TypeScript, React, Prisma/PostgreSQL, Tailwind, and S3-compatible object storage for blog images.
-- Admin post editing is implemented with server actions in app/admin/posts/actions.ts and form UI components under app/admin/posts/_components/.
-- Runtime configuration is centralized in lib/env/server.ts; object storage upload behavior is encapsulated in lib/storage/object-storage.ts.
+- Next.js App Router application with public blog pages under app/(public), admin editor under app/admin, shared storage/database utilities under lib, and UI styling through Tailwind/editorial theme tokens.
+- Existing uploaded post images are stored through lib/storage/object-storage.ts and referenced by relative object keys in database-backed post records.
 
-Module/file organization
-- next.config.ts: framework-level configuration. Issue #85 should be implemented here by adding the Server Actions body-size limit.
-- app/admin/posts/actions.ts: existing createPost/updatePost server actions consume multipart FormData, extract File objects, and pass file.arrayBuffer() to storage. No architectural change expected for this issue.
-- lib/storage/object-storage.ts: existing storage wrapper validates content type/size, prefixes object keys, uses concrete ContentLength, and signs reads. No change expected unless tests reveal upload constraints beyond Next's Server Actions limit.
-- tests/e2e: useful place for an upload-regression test if existing Playwright coverage can be extended without heavy fixture setup.
-
-Dependencies and issue ordering
-- Only one issue is in scope. Issue #85 has no dependency on future issues.
-- The fix depends on the existing multipart admin post editor and server action upload path already being present.
+Issue grouping and dependencies
+- #87, #88: Homepage-only presentation changes in app/(public)/page.tsx. These can be applied independently, but should be reviewed together to preserve the Official Journal layout hierarchy.
+- #89, #90: Article page typography changes in app/(public)/blog/[slug]/page.tsx. These are independent CSS class changes but should share heading scale decisions with homepage typography.
+- #92: Shared 16:9 cover treatment spans homepage cards and article cover. Prefer a small shared class/string helper for cover media classes to avoid divergent aspect-ratio rules.
+- #91: Admin post editor enhancement. Add a client-only cover image cropper component colocated under app/admin/posts/_components. It must preserve the existing multipart form/server action flow by assigning the cropped File/Blob to the existing coverImage field before submit, rather than introducing a separate upload endpoint.
 
 Key design decisions
-- Set Next.js serverActions.bodySizeLimit to "25mb" in next.config.ts. This leaves application-level image validation unchanged while preventing Next from rejecting legitimate multipart submissions before createPost()/updatePost() run.
-- Keep the storage-layer 10 MB per-image limit in lib/storage/object-storage.ts; the framework limit is intentionally higher to account for cover image, author avatar, inline image, and multipart overhead in one post form.
-- Verify with lint/tests/build where practical, and confirm no secrets or runtime env values are committed.
+- Keep content/markup stable for visual-only issues; only remove requested intro copy and adjust Tailwind classes.
+- Define/reuse 16:9 media styling once where practical, using aspect-[16/9] overflow-hidden and object-cover for consistency across homepage and article pages.
+- For the cropper, avoid new persistence paths. Use browser File APIs/canvas in a client component, keep file size/type validation consistent with existing server-side upload constraints, and maintain accessible controls for crop preview and confirmation.
+- No new auth or email platform integrations are required by these issues.
+
+Validation plan
+- Run npm test and npm run lint after each issue when relevant.
+- For cropper work, also verify admin editor form still submits multipart/form-data and that server actions receive coverImage under the existing field name.
