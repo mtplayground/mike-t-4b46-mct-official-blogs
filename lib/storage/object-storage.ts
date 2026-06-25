@@ -6,7 +6,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getObjectStorageEnv, type ObjectStorageEnv } from "../env/server";
+import { getObjectStorageEnv, getSelfUrl, type ObjectStorageEnv } from "../env/server";
 
 const POST_IMAGE_PREFIX = "post-images";
 const MAX_POST_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -168,6 +168,18 @@ export async function getSignedPostImageUrl(
     }),
     { expiresIn },
   );
+}
+
+/**
+ * Stable, never-expiring URL for displaying a stored image. Resolves to a fresh
+ * presigned URL at request time via the `/api/image` proxy route, so it is safe
+ * to embed in statically-prerendered HTML (a raw presigned URL would expire and
+ * 403 for later visitors). Returns an absolute URL (usable in <img>, OG, JSON-LD).
+ */
+export async function getPostImageUrl(relativeKey: string): Promise<string> {
+  assertRelativeObjectKey(relativeKey);
+  const encodedKey = relativeKey.split("/").map(encodeURIComponent).join("/");
+  return new URL(`/api/image/${encodedKey}`, getSelfUrl()).toString();
 }
 
 export async function deletePostImage(relativeKey: string) {

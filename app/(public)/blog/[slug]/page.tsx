@@ -7,7 +7,7 @@ import remarkGfm from "remark-gfm";
 import { getSignedMarkdownBody } from "@/lib/content/markdown";
 import { prisma } from "@/lib/db/prisma";
 import { absoluteSiteUrl, buildPageMetadata, siteName } from "@/lib/metadata";
-import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
+import { getPostImageUrl } from "@/lib/storage/object-storage";
 
 export const revalidate = 300;
 
@@ -214,8 +214,8 @@ export default async function PostPage({ params }: PostPageProps) {
   }
 
   const [coverImageUrl, authorAvatarUrl, signedBody] = await Promise.all([
-    post.coverImageKey ? getSignedPostImageUrl(post.coverImageKey) : Promise.resolve(null),
-    post.authorAvatarKey ? getSignedPostImageUrl(post.authorAvatarKey) : Promise.resolve(null),
+    post.coverImageKey ? getPostImageUrl(post.coverImageKey) : Promise.resolve(null),
+    post.authorAvatarKey ? getPostImageUrl(post.authorAvatarKey) : Promise.resolve(null),
     getSignedMarkdownBody(post.body),
   ]);
   const articleJsonLd = buildArticleJsonLd({ authorAvatarUrl, coverImageUrl, post });
