@@ -1,7 +1,6 @@
 target/
 node_modules/
 .gh_token
-.claude/
 .database_url
 .task_id
 .container_name
@@ -11,10 +10,3 @@ node_modules/
 .pipeline-state.json
 .gitkeep
 .progress
-.env.production
-.next/
-.db_decision
-.storage_decision
-.deploy_url
-verify-screenshot.png
-ui-verify.js

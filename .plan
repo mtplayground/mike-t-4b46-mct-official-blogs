@@ -1,27 +1,21 @@
-Architecture plan for issue #83
+Architecture plan for Issue #85: Raise Server Actions body-size limit so post image uploads succeed
 
-Project shape:
-- Existing Next.js App Router application for myClawTeam Blog.
-- Admin authentication is implemented with first-party username/password credentials and an HTTP-only admin session cookie.
-- Credential resolution currently lives in `lib/env/server.ts`; session creation and verification helpers live in `lib/admin/session.ts`; admin route protection is enforced by `proxy.ts`.
+Project shape
+- Next.js App Router application with TypeScript, React, Prisma/PostgreSQL, Tailwind, and S3-compatible object storage for blog images.
+- Admin post editing is implemented with server actions in app/admin/posts/actions.ts and form UI components under app/admin/posts/_components/.
+- Runtime configuration is centralized in lib/env/server.ts; object storage upload behavior is encapsulated in lib/storage/object-storage.ts.
 
-Issue #83 — align admin session verification credential source:
-- Update `proxy.ts` so admin session verification obtains the signing secret from the same credential accessor used by the login route: `getAdminCredentials()`.
-- This keeps login and proxy verification consistent when admin credentials are explicitly configured with `ADMIN_USERNAME`/`ADMIN_PASSWORD` and when they are derived from `JWT_SECRET`.
-- Preserve the existing admin cookie name, session format, and route matcher behavior.
+Module/file organization
+- next.config.ts: framework-level configuration. Issue #85 should be implemented here by adding the Server Actions body-size limit.
+- app/admin/posts/actions.ts: existing createPost/updatePost server actions consume multipart FormData, extract File objects, and pass file.arrayBuffer() to storage. No architectural change expected for this issue.
+- lib/storage/object-storage.ts: existing storage wrapper validates content type/size, prefixes object keys, uses concrete ContentLength, and signs reads. No change expected unless tests reveal upload constraints beyond Next's Server Actions limit.
+- tests/e2e: useful place for an upload-regression test if existing Playwright coverage can be extended without heavy fixture setup.
 
-Module/file organization:
-- `lib/env/server.ts`: central credential/env accessor. If needed, refine validation so `ADMIN_USERNAME` and `ADMIN_PASSWORD` must be supplied together, while keeping the JWT-derived fallback when both are omitted.
-- `app/api/admin/login/route.ts`: should remain the source of session creation using `getAdminCredentials().password`.
-- `proxy.ts`: should call `getAdminCredentials()` and pass `.password` to `verifyAdminSession()` rather than reading `process.env.ADMIN_PASSWORD` directly.
-- Tests should live in `tests/` and cover both explicit env credentials and fallback-derived credentials for session verification.
+Dependencies and issue ordering
+- Only one issue is in scope. Issue #85 has no dependency on future issues.
+- The fix depends on the existing multipart admin post editor and server action upload path already being present.
 
-Dependencies and sequencing:
-- Single-issue batch. No schema, storage, public UI, or deployment topology changes are required.
-- The proxy change depends on the credential accessor being usable in the proxy runtime. Keep imports minimal and avoid adding Node-only APIs to `proxy.ts` itself.
-
-Key design decisions:
-- Use one credential source for all admin auth paths to avoid split-brain session signing/verification.
-- Fail loudly when only one of `ADMIN_USERNAME` or `ADMIN_PASSWORD` is configured.
-- Do not introduce OAuth, user accounts, a custom JWT layer, or additional persistent state for this issue.
-- Validate with `npm run test` and `npm run build`.
+Key design decisions
+- Set Next.js serverActions.bodySizeLimit to "25mb" in next.config.ts. This leaves application-level image validation unchanged while preventing Next from rejecting legitimate multipart submissions before createPost()/updatePost() run.
+- Keep the storage-layer 10 MB per-image limit in lib/storage/object-storage.ts; the framework limit is intentionally higher to account for cover image, author avatar, inline image, and multipart overhead in one post form.
+- Verify with lint/tests/build where practical, and confirm no secrets or runtime env values are committed.
