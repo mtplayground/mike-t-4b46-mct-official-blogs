@@ -137,6 +137,13 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
           />
           Featured article
         </label>
+        <input
+          aria-hidden="true"
+          className="hidden"
+          name="squareCoverImage"
+          tabIndex={-1}
+          type="file"
+        />
 
         <CoverImageCropper />
 
