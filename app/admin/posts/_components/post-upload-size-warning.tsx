@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 const MEGABYTE = 1024 * 1024;
-const MAX_MULTIPART_UPLOAD_BYTES = 25 * MEGABYTE;
+const MAX_MULTIPART_UPLOAD_BYTES = 50 * MEGABYTE;
 const IMAGE_INPUT_NAMES = ["coverImage", "squareCoverImage", "authorAvatar", "inlineImage"];
 
 function formatMegabytes(bytes: number) {
@@ -48,7 +48,7 @@ export function PostUploadSizeWarning() {
 
       event.preventDefault();
       setMessage(
-        `Selected images total ${formatMegabytes(totalBytes)} MB. Keep combined image uploads under 25 MB and try again.`,
+        `Selected images total ${formatMegabytes(totalBytes)} MB. Keep combined image uploads under 50 MB and try again.`,
       );
       requestAnimationFrame(() => messageRef.current?.focus());
     }
@@ -71,7 +71,7 @@ export function PostUploadSizeWarning() {
         </p>
       ) : null}
       <p className="text-sm leading-6 text-editorial-muted">
-        Keep combined image uploads under 25 MB per post submission.
+        Keep combined image uploads under 50 MB per post submission.
       </p>
     </div>
   );
