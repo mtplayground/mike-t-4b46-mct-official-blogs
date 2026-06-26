@@ -38,6 +38,7 @@ export default async function EditPostPage({ params, searchParams }: EditPostPag
         id: true,
         isFeatured: true,
         slug: true,
+        squareCoverImageKey: true,
         status: true,
         title: true,
       },
