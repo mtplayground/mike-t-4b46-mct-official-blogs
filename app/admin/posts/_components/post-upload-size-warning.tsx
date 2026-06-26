@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 const MEGABYTE = 1024 * 1024;
 const MAX_MULTIPART_UPLOAD_BYTES = 25 * MEGABYTE;
-const IMAGE_INPUT_NAMES = ["coverImage", "authorAvatar", "inlineImage"];
+const IMAGE_INPUT_NAMES = ["coverImage", "squareCoverImage", "authorAvatar", "inlineImage"];
 
 function formatMegabytes(bytes: number) {
   return (bytes / MEGABYTE).toFixed(1).replace(/\.0$/u, "");
