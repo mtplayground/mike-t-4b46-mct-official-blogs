@@ -1,19 +1,21 @@
-Architecture plan for Issue #116: Use the sans font across the entire site
+Architecture plan for issues #118-#120
 
-Module structure and file organization
-- Tailwind design tokens: update `tailwind.config.ts` so the project's display/body font tokens resolve to the same sans-serif stack, avoiding a split between display and sans typography.
-- Global CSS: update `app/globals.css` base/components styles so `body`, headings, eyebrow labels, editorial buttons, and other shared typography helpers inherit/use the sans font rather than display-specific font utilities.
-- Public pages and components: inspect and adjust font utility usage in `app/(public)/page.tsx`, `app/(public)/blog/[slug]/page.tsx`, `components/layout/site-header.tsx`, and `components/layout/site-footer.tsx` so no page-level element forces the old display font.
-- Tests: add a focused source-level font test under `tests/` that asserts the Tailwind font tokens and key public/layout files no longer use display-font utilities.
+Module structure and file organization:
+- Data model: extend `prisma/schema.prisma` Post with nullable `squareCoverImageKey` mapped to `square_cover_image_key`; add a Prisma migration under `prisma/migrations/<timestamp>_add_square_cover_image_key/migration.sql`.
+- Admin UI: keep the crop UI encapsulated in `app/admin/posts/_components/cover-image-cropper.tsx`. Rework it into a dual-output component that owns the original selected local image, separate crop state for the 16:9 cover and the 1:1 square crop, two canvas export helpers, and two file assignments: existing `coverImage` plus new hidden/file input `squareCoverImage`.
+- Server actions: update `app/admin/posts/actions.ts` to parse, validate, upload, persist, replace, rollback, and delete both cover object keys. Reuse existing `uploadImageFile`, `deletePostImage`, and uploaded-key rollback patterns.
+- Admin delete/publish actions: update any post deletion cleanup in `app/admin/actions.ts` to delete `squareCoverImageKey` alongside `coverImageKey`.
+- Public content: existing public rendering can continue using `coverImageKey` for 16:9 displays unless a later issue asks for square presentation; the square key is stored for future consumers.
 
-Shared types and contracts
-- No new runtime data types, API contracts, database schema changes, auth, email, or object-storage behavior are needed.
-- The shared contract is visual/design-token consistency: site typography should resolve through the sans font family everywhere.
+Dependencies between issues:
+- #118 is the foundation: schema and migration must land before server code can persist the new key.
+- #119 can be developed after or in parallel conceptually, but final integration depends on the field name expected by #120: `squareCoverImage` form field.
+- #120 depends on #118 for Prisma fields and on #119 for receiving the square file from the form.
 
-Dependencies between issues
-- Single-issue batch. No dependency on prior feature issues beyond the existing blog UI files being present.
-
-Key design decisions
-- Prefer central token/global-style changes over scattered one-off classes where possible, then remove explicit `font-display`/display-font usage from named files.
-- Keep all existing layout, content, colors, spacing, and responsive behavior unchanged; only typography family should change.
-- Use tests that guard against regressions in the files named by the issue without adding brittle pixel-level/browser assertions.
+Key design decisions:
+- Preserve the existing `coverImage` field as the 16:9 cover upload to minimize public-display changes.
+- Add `squareCoverImage` as a second form file output generated client-side from an admin-adjustable 1:1 crop.
+- Generate JPEG outputs via canvas with deterministic suffixes such as `-16x9-cover.jpg` and `-1x1-square-cover.jpg`.
+- Treat the two cover uploads as an atomic pair during create/update: rollback any uploaded objects if the database write fails.
+- On replacement/removal/delete, clean up both old object-storage keys to avoid orphaned files.
+- Validation should require both cover files before publishing a new/replaced cover, while existing posts may retain previously stored keys.
