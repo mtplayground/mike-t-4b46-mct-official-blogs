@@ -4,9 +4,9 @@ import test from "node:test";
 
 import nextConfig from "../next.config";
 
-test("server actions accept multipart post editor uploads up to 25mb", () => {
+test("server actions accept multipart post editor uploads up to 50mb", () => {
   assert.deepEqual(nextConfig.experimental?.serverActions, {
-    bodySizeLimit: "25mb",
+    bodySizeLimit: "50mb",
   });
 });
 
@@ -52,7 +52,7 @@ test("admin post deletion cleans up the square cover image object", async () => 
 test("post editor surfaces a clear client-side message for oversized multipart image selections", async () => {
   const source = await readFile("app/admin/posts/_components/post-upload-size-warning.tsx", "utf8");
 
-  assert.match(source, /MAX_MULTIPART_UPLOAD_BYTES = 25 \* MEGABYTE/);
+  assert.match(source, /MAX_MULTIPART_UPLOAD_BYTES = 50 \* MEGABYTE/);
   assert.match(source, /"squareCoverImage"/);
-  assert.match(source, /Keep combined image uploads under 25 MB and try again/);
+  assert.match(source, /Keep combined image uploads under 50 MB and try again/);
 });
