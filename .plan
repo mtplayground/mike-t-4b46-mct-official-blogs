@@ -1,16 +1,21 @@
-Architecture plan for Issue #126: Raise upload body-size limit for dual cover images
+Architecture plan for Issue #128: Fix stale "25 MB" copy in the admin error boundary
 
-Module structure and file organization:
-- Next.js runtime configuration lives in next.config.ts. The serverActions.bodySizeLimit setting controls the maximum multipart payload accepted by server actions such as admin post create/update.
-- The admin post upload-size warning UI lives in app/admin/posts/_components/post-upload-size-warning.tsx. It mirrors the server limit client-side to warn editors before submitting large cover/avatar/inline image combinations.
-- Admin post form and cropper components already produce multiple files: the 16:9 cover, the 1:1 square cover, author avatar, and optional inline image. No new shared types are required for this limit-only change.
+Project shape:
+- Next.js App Router application with TypeScript, React, Tailwind CSS, Prisma/PostgreSQL, and S3-compatible object storage.
+- Public app routes live under app/(public); admin routes and admin server actions live under app/admin.
+- Shared domain helpers live under lib/, reusable UI components under components/, and database schema/migrations under prisma/.
 
-Dependencies between issues:
-- Only Issue #126 is in scope for implementation in the next session.
-- It depends on the already-present dual cover image workflow; no schema, storage, or API dependency changes are needed.
+Relevant module/file organization:
+- app/admin/error.tsx owns the admin error boundary UI and retry messaging.
+- next.config.ts configures the server action/body size limit at 50mb.
+- app/admin/posts/_components/post-upload-size-warning.tsx already communicates the 50 MB upload limit in the admin editor.
+
+Issue dependency analysis:
+- There is only one issue in this batch.
+- It is an isolated copy-only fix with no schema, API, auth, storage, or routing dependencies.
+- No shared types or new dependencies are needed.
 
 Key design decisions:
-- Raise the Next server action body limit from 25mb to 50mb in next.config.ts.
-- Raise the client-side MAX_MULTIPART_UPLOAD_BYTES threshold to 50 * MEGABYTE so the editor warning stays aligned with the server limit.
-- Update any visible warning copy/tests that mention 25 MB so user-facing messaging and validation expectations match 50 MB.
-- Avoid changing individual per-image object storage validation unless explicitly required; this issue concerns total multipart body size, not supported file types or per-file limits.
+- Update only the stale user-facing text in app/admin/error.tsx from 25 MB to 50 MB.
+- Preserve the existing admin error boundary structure, styling, retry behavior, and logging behavior.
+- Validate with a lightweight grep/test or lint if needed; full deployment should not require database or storage changes.
