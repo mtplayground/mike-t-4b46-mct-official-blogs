@@ -28,6 +28,7 @@ type PublishedPost = Post & {
 
 type HomepagePost = PublishedPost & {
   coverImageUrl: string | null;
+  squareCoverImageUrl: string | null;
 };
 
 function publishedPostWhere() {
@@ -44,17 +45,20 @@ function formatPublishedDate(post: Pick<Post, "publishedAt">) {
 }
 
 async function withSignedCoverImage(post: PublishedPost): Promise<HomepagePost> {
-  if (!post.coverImageKey) {
-    return {
-      ...post,
-      coverImageUrl: null,
-    };
-  }
+  const [coverImageUrl, squareCoverImageUrl] = await Promise.all([
+    post.coverImageKey ? getPostImageUrl(post.coverImageKey) : Promise.resolve(null),
+    post.squareCoverImageKey ? getPostImageUrl(post.squareCoverImageKey) : Promise.resolve(null),
+  ]);
 
   return {
     ...post,
-    coverImageUrl: await getPostImageUrl(post.coverImageKey),
+    coverImageUrl,
+    squareCoverImageUrl,
   };
+}
+
+function getHeroImageUrl(post: HomepagePost) {
+  return post.squareCoverImageUrl ?? post.coverImageUrl;
 }
 
 async function getHomepagePosts() {
@@ -144,6 +148,7 @@ function ArticleCard({ post }: { post: HomepagePost }) {
 
 export default async function HomePage() {
   const { heroPost, posts } = await getHomepagePosts();
+  const heroImageUrl = heroPost ? getHeroImageUrl(heroPost) : null;
 
   return (
     <main>
@@ -167,8 +172,8 @@ export default async function HomePage() {
                 className="group overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial"
                 href={`/blog/${heroPost.slug}`}
               >
-                <figure className="h-[420px] overflow-hidden bg-editorial-cream md:h-[560px]">
-                  <PostImage alt="" src={heroPost.coverImageUrl} />
+                <figure className="aspect-square overflow-hidden bg-editorial-cream">
+                  <PostImage alt="" src={heroImageUrl} />
                 </figure>
               </Link>
             </>
