@@ -1,26 +1,19 @@
-Architecture plan for Issues #108-#111
+Architecture plan for Issue #116: Use the sans font across the entire site
 
 Module structure and file organization
-- Data model: extend `prisma/schema.prisma` `Post` model with `views Int @default(0)` and add a new Prisma migration containing `ALTER TABLE "posts" ADD COLUMN "views" INTEGER NOT NULL DEFAULT 0;`.
-- API: add `app/api/posts/[slug]/views/route.ts` for post view reads/increments. Keep route logic server-only and use the existing `prisma` singleton from `lib/db/prisma` plus `PostStatus` from `@prisma/client`.
-- UI: add `components/blog/article-engagement.tsx` as a client component. It should increment views once on mount by POSTing to `/api/posts/${slug}/views`, display the returned count as `N views`, expose native `navigator.share` when available, and render fallback links for X, LinkedIn, Facebook plus Copy link.
-- Article page integration: update `app/(public)/blog/[slug]/page.tsx` to import and render `ArticleEngagement`, passing `post.slug`, `post.title`, and the canonical article URL built with existing `absoluteSiteUrl(`/blog/${post.slug}`)`.
-- Tests: add `tests/article-engagement.test.ts` using the repository's existing Node test style to assert the Prisma schema field, article page integration, and required share URLs in the client component.
+- Tailwind design tokens: update `tailwind.config.ts` so the project's display/body font tokens resolve to the same sans-serif stack, avoiding a split between display and sans typography.
+- Global CSS: update `app/globals.css` base/components styles so `body`, headings, eyebrow labels, editorial buttons, and other shared typography helpers inherit/use the sans font rather than display-specific font utilities.
+- Public pages and components: inspect and adjust font utility usage in `app/(public)/page.tsx`, `app/(public)/blog/[slug]/page.tsx`, `components/layout/site-header.tsx`, and `components/layout/site-footer.tsx` so no page-level element forces the old display font.
+- Tests: add a focused source-level font test under `tests/` that asserts the Tailwind font tokens and key public/layout files no longer use display-font utilities.
 
 Shared types and contracts
-- API response shape should stay minimal and shared by convention: `{ views: number }` on success and `{ error: string }` with 404 for missing/unpublished posts.
-- Published-post access rules should match existing content visibility semantics: `status === PostStatus.PUBLISHED` and `publishedAt != null`.
-- The client component should not require additional dependencies; use browser `fetch`, `navigator.share`, and `navigator.clipboard`.
+- No new runtime data types, API contracts, database schema changes, auth, email, or object-storage behavior are needed.
+- The shared contract is visual/design-token consistency: site typography should resolve through the sans font family everywhere.
 
-Issue dependencies
-- #108 must land first because #109 relies on `Post.views` in Prisma Client and the database.
-- #109 depends on #108 and provides the API contract consumed by #110.
-- #110 depends on #109 for live view counts and on existing article metadata helpers for the canonical URL.
-- #111 depends on #108-#110 because it verifies schema, API/UI integration points, and share-link implementation.
+Dependencies between issues
+- Single-issue batch. No dependency on prior feature issues beyond the existing blog UI files being present.
 
 Key design decisions
-- Keep article pages cacheable with the existing ISR behavior (`revalidate = 300`) by tracking views through a client-side API call rather than mutating in the server-rendered page.
-- Guard both read and increment paths so drafts/unpublished posts cannot expose or inflate views.
-- Use an atomic Prisma increment for POST after verifying the post is published, avoiding race-prone read/modify/write logic.
-- Style sharing controls with the existing editorial pill/card classes to preserve visual consistency and avoid introducing a UI library.
-- Do not add email or end-user authentication features; these issues only cover anonymous article view tracking and public social sharing.
+- Prefer central token/global-style changes over scattered one-off classes where possible, then remove explicit `font-display`/display-font usage from named files.
+- Keep all existing layout, content, colors, spacing, and responsive behavior unchanged; only typography family should change.
+- Use tests that guard against regressions in the files named by the issue without adding brittle pixel-level/browser assertions.
