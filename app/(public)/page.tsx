@@ -154,7 +154,7 @@ export default async function HomePage() {
               <div className="stack max-w-3xl">
                 <p className="eyebrow">myClawTeam Official Blogs / Featured Article</p>
                 <PostMeta post={heroPost} />
-                <h1 className="text-[2.35rem] font-display font-semibold leading-[2.65rem] text-editorial-ink md:text-heading-md">
+                <h1 className="text-[2.35rem] font-sans font-semibold leading-[2.65rem] text-editorial-ink md:text-heading-md">
                   {heroPost.title}
                 </h1>
                 <p className="text-lead text-editorial-muted">{heroPost.excerpt}</p>
@@ -175,7 +175,7 @@ export default async function HomePage() {
           ) : (
             <div className="stack max-w-3xl lg:col-span-2">
               <p className="eyebrow">myClawTeam Official Blogs</p>
-              <h1 className="text-[3rem] font-display font-semibold leading-[3.2rem] text-editorial-ink md:text-heading-lg">
+              <h1 className="text-[3rem] font-sans font-semibold leading-[3.2rem] text-editorial-ink md:text-heading-lg">
                 Official myClawTeam updates, product progress, and engineering notes.
               </h1>
               <p className="text-lead text-editorial-muted">

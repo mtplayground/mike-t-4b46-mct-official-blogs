@@ -29,7 +29,7 @@ export function SiteFooter() {
               src="https://myclawteam.ai/logo.png"
             />
             <span className="grid gap-1">
-              <span className="font-display text-xl font-semibold leading-none">
+              <span className="font-sans text-xl font-semibold leading-none">
                 myClawTeam Blog
               </span>
             </span>
