@@ -175,7 +175,7 @@ export async function createPost(formData: FormData) {
 
   if (coverImage && !squareCoverImage) {
     redirectToEditor("/admin/posts/new", {
-      error: "Apply both cover crops before saving a cover image.",
+      error: "Upload both 16:9 and 1:1 cover images before saving.",
     });
   }
 
@@ -334,7 +334,7 @@ export async function updatePost(formData: FormData) {
 
   if (coverImage && !squareCoverImage) {
     redirectToEditor(editorPath, {
-      error: "Apply both cover crops before saving a new cover image.",
+      error: "Upload both 16:9 and 1:1 cover images before saving a new cover image.",
     });
   }
 

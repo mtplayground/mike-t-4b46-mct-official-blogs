@@ -2,7 +2,6 @@ import { Category, Post, PostStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { createPost, updatePost } from "../actions";
-import { CoverImageCropper } from "./cover-image-cropper";
 import { PostUploadSizeWarning } from "./post-upload-size-warning";
 
 type PostEditorFormProps = {
@@ -20,6 +19,7 @@ type PostEditorFormProps = {
     | "id"
     | "isFeatured"
     | "slug"
+    | "squareCoverImageKey"
     | "status"
     | "title"
   >;
@@ -137,15 +137,35 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
           />
           Featured article
         </label>
-        <input
-          aria-hidden="true"
-          className="hidden"
-          name="squareCoverImage"
-          tabIndex={-1}
-          type="file"
-        />
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-sm font-bold uppercase text-editorial-ink">
+              Cover image, 16:9
+            </span>
+            <input
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="rounded-button border border-editorial-line bg-editorial-white px-4 py-3 text-sm"
+              name="coverImage"
+              type="file"
+            />
+          </label>
 
-        <CoverImageCropper />
+          <label className="grid gap-2">
+            <span className="text-sm font-bold uppercase text-editorial-ink">
+              Square cover image, 1:1
+            </span>
+            <input
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="rounded-button border border-editorial-line bg-editorial-white px-4 py-3 text-sm"
+              name="squareCoverImage"
+              type="file"
+            />
+          </label>
+        </div>
+        <p className="text-sm leading-6 text-editorial-muted">
+          Upload matching 16:9 and 1:1 cover images. Published posts require both cover image
+          formats.
+        </p>
 
         {post?.coverImageKey ? (
           <label className="flex items-center gap-3 text-sm text-editorial-muted">
@@ -156,6 +176,17 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
               value="yes"
             />
             Remove current cover image
+          </label>
+        ) : null}
+        {post?.squareCoverImageKey ? (
+          <label className="flex items-center gap-3 text-sm text-editorial-muted">
+            <input
+              className="size-4 accent-editorial-red"
+              name="removeSquareCover"
+              type="checkbox"
+              value="yes"
+            />
+            Remove current square cover image
           </label>
         ) : null}
       </div>
