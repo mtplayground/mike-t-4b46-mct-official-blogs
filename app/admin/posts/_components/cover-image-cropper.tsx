@@ -1,16 +1,34 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  Dispatch,
+  FormEvent,
+  SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 const COVER_ASPECT_RATIO = 16 / 9;
-const OUTPUT_WIDTH = 1600;
-const OUTPUT_HEIGHT = 900;
+const SQUARE_ASPECT_RATIO = 1;
+const COVER_OUTPUT_WIDTH = 1600;
+const COVER_OUTPUT_HEIGHT = 900;
+const SQUARE_OUTPUT_SIZE = 1200;
 const JPEG_QUALITY = 0.9;
+const SQUARE_INPUT_NAME = "squareCoverImage";
 
 type CropState = {
   offsetX: number;
   offsetY: number;
   zoom: number;
+};
+
+type CropOutputConfig = {
+  aspectRatio: number;
+  filenameSuffix: string;
+  height: number;
+  width: number;
 };
 
 const initialCrop: CropState = {
@@ -19,14 +37,28 @@ const initialCrop: CropState = {
   zoom: 100,
 };
 
-function cropBounds(image: HTMLImageElement, crop: CropState) {
+const coverOutputConfig: CropOutputConfig = {
+  aspectRatio: COVER_ASPECT_RATIO,
+  filenameSuffix: "16x9-cover",
+  height: COVER_OUTPUT_HEIGHT,
+  width: COVER_OUTPUT_WIDTH,
+};
+
+const squareOutputConfig: CropOutputConfig = {
+  aspectRatio: SQUARE_ASPECT_RATIO,
+  filenameSuffix: "1x1-square-cover",
+  height: SQUARE_OUTPUT_SIZE,
+  width: SQUARE_OUTPUT_SIZE,
+};
+
+function cropBounds(image: HTMLImageElement, crop: CropState, aspectRatio: number) {
   const zoom = crop.zoom / 100;
   let sourceWidth = image.naturalWidth / zoom;
-  let sourceHeight = sourceWidth / COVER_ASPECT_RATIO;
+  let sourceHeight = sourceWidth / aspectRatio;
 
   if (sourceHeight > image.naturalHeight / zoom) {
     sourceHeight = image.naturalHeight / zoom;
-    sourceWidth = sourceHeight * COVER_ASPECT_RATIO;
+    sourceWidth = sourceHeight * aspectRatio;
   }
 
   sourceWidth = Math.min(sourceWidth, image.naturalWidth);
@@ -43,7 +75,12 @@ function cropBounds(image: HTMLImageElement, crop: CropState) {
   };
 }
 
-async function toCroppedCoverFile(file: File, image: HTMLImageElement, crop: CropState) {
+async function toCroppedFile(
+  file: File,
+  image: HTMLImageElement,
+  crop: CropState,
+  output: CropOutputConfig,
+) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
 
@@ -51,9 +88,14 @@ async function toCroppedCoverFile(file: File, image: HTMLImageElement, crop: Cro
     throw new Error("The selected image could not be prepared for cropping.");
   }
 
-  const { sourceHeight, sourceWidth, sourceX, sourceY } = cropBounds(image, crop);
-  canvas.width = OUTPUT_WIDTH;
-  canvas.height = OUTPUT_HEIGHT;
+  const { sourceHeight, sourceWidth, sourceX, sourceY } = cropBounds(
+    image,
+    crop,
+    output.aspectRatio,
+  );
+
+  canvas.width = output.width;
+  canvas.height = output.height;
   context.drawImage(
     image,
     sourceX,
@@ -62,8 +104,8 @@ async function toCroppedCoverFile(file: File, image: HTMLImageElement, crop: Cro
     sourceHeight,
     0,
     0,
-    OUTPUT_WIDTH,
-    OUTPUT_HEIGHT,
+    output.width,
+    output.height,
   );
 
   const blob = await new Promise<Blob | null>((resolve) => {
@@ -75,7 +117,7 @@ async function toCroppedCoverFile(file: File, image: HTMLImageElement, crop: Cro
   }
 
   const basename = file.name.replace(/\.[^.]+$/, "") || "cover-image";
-  return new File([blob], `${basename}-16x9-cover.jpg`, {
+  return new File([blob], `${basename}-${output.filenameSuffix}.jpg`, {
     lastModified: Date.now(),
     type: "image/jpeg",
   });
@@ -87,15 +129,38 @@ function assignFileToInput(input: HTMLInputElement, file: File) {
   input.files = transfer.files;
 }
 
+function clearFileInput(input: HTMLInputElement | null) {
+  if (input) {
+    input.value = "";
+  }
+}
+
+function findSquareInput(form: HTMLFormElement | null) {
+  const squareInput = form?.elements.namedItem(SQUARE_INPUT_NAME);
+
+  return squareInput instanceof HTMLInputElement ? squareInput : null;
+}
+
+function cropPreviewStyle(crop: CropState) {
+  return {
+    objectPosition: `${crop.offsetX}% ${crop.offsetY}%`,
+    transform: `scale(${crop.zoom / 100})`,
+    transformOrigin: `${crop.offsetX}% ${crop.offsetY}%`,
+  };
+}
+
 export function CoverImageCropper() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const replayingSubmitRef = useRef(false);
-  const [crop, setCrop] = useState<CropState>(initialCrop);
-  const [isCropReady, setIsCropReady] = useState(false);
+  const [coverCrop, setCoverCrop] = useState<CropState>(initialCrop);
+  const [squareCrop, setSquareCrop] = useState<CropState>(initialCrop);
+  const [areCropsReady, setAreCropsReady] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState("Select a cover image to crop it to 16:9 before upload.");
+  const [status, setStatus] = useState(
+    "Select a cover image to prepare both 16:9 and square crops before upload.",
+  );
 
   useEffect(() => {
     return () => {
@@ -119,12 +184,12 @@ export function CoverImageCropper() {
         return;
       }
 
-      if (!selectedFile || isCropReady) {
+      if (!selectedFile || areCropsReady) {
         return;
       }
 
       event.preventDefault();
-      const cropped = await applyCrop();
+      const cropped = await applyCrops();
 
       if (cropped) {
         replayingSubmitRef.current = true;
@@ -136,20 +201,26 @@ export function CoverImageCropper() {
     return () => form.removeEventListener("submit", handleSubmit);
   });
 
-  async function applyCrop() {
-    const input = fileInputRef.current;
+  async function applyCrops() {
+    const coverInput = fileInputRef.current;
     const image = imageRef.current;
+    const squareInput = findSquareInput(coverInput?.form ?? null);
 
-    if (!input || !selectedFile || !image) {
+    if (!coverInput || !squareInput || !selectedFile || !image) {
+      setStatus("The crop tool could not find both upload fields. Refresh and try again.");
       return null;
     }
 
     try {
-      const croppedFile = await toCroppedCoverFile(selectedFile, image, crop);
-      assignFileToInput(input, croppedFile);
-      setIsCropReady(true);
-      setStatus("16:9 cover crop ready. The cropped image will upload as the coverImage field.");
-      return croppedFile;
+      const [coverFile, squareFile] = await Promise.all([
+        toCroppedFile(selectedFile, image, coverCrop, coverOutputConfig),
+        toCroppedFile(selectedFile, image, squareCrop, squareOutputConfig),
+      ]);
+      assignFileToInput(coverInput, coverFile);
+      assignFileToInput(squareInput, squareFile);
+      setAreCropsReady(true);
+      setStatus("Both 16:9 and square cover crops are ready and will upload when saved.");
+      return { coverFile, squareFile };
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "The cover image could not be cropped.");
       return null;
@@ -158,35 +229,54 @@ export function CoverImageCropper() {
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0] ?? null;
-    setCrop(initialCrop);
-    setIsCropReady(false);
+    const squareInput = findSquareInput(event.currentTarget.form);
+    setCoverCrop(initialCrop);
+    setSquareCrop(initialCrop);
+    setAreCropsReady(false);
+    clearFileInput(squareInput);
 
     if (!file) {
       setSelectedFile(null);
       setPreviewUrl(null);
-      setStatus("Select a cover image to crop it to 16:9 before upload.");
+      setStatus("Select a cover image to prepare both 16:9 and square crops before upload.");
       return;
     }
 
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
-    setStatus("Adjust the 16:9 crop, then apply it before saving.");
+    setStatus("Adjust both crops, then apply them before saving.");
   }
 
-  function updateCrop(field: keyof CropState) {
+  function updateCoverCrop(field: keyof CropState) {
+    return updateCrop(field, setCoverCrop, "Cover crop adjusted. Apply both crops before saving.");
+  }
+
+  function updateSquareCrop(field: keyof CropState) {
+    return updateCrop(
+      field,
+      setSquareCrop,
+      "Square crop adjusted. Apply both crops before saving.",
+    );
+  }
+
+  function updateCrop(
+    field: keyof CropState,
+    setCrop: Dispatch<SetStateAction<CropState>>,
+    nextStatus: string,
+  ) {
     return (event: ChangeEvent<HTMLInputElement>) => {
-      setIsCropReady(false);
+      setAreCropsReady(false);
       setCrop((current) => ({
         ...current,
         [field]: Number(event.currentTarget.value),
       }));
-      setStatus("Crop adjusted. Apply the 16:9 crop before saving.");
+      setStatus(nextStatus);
     };
   }
 
   async function handleApplyClick(event: FormEvent<HTMLButtonElement>) {
     event.preventDefault();
-    await applyCrop();
+    await applyCrops();
   }
 
   return (
@@ -204,68 +294,141 @@ export function CoverImageCropper() {
       </label>
 
       {previewUrl ? (
-        <div className="grid gap-4 rounded-card border border-editorial-line bg-editorial-cream p-4">
+        <div className="grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-4">
           <div className="grid gap-2">
-            <p className="text-sm font-bold uppercase text-editorial-ink">16:9 cover crop</p>
+            <p className="text-sm font-bold uppercase text-editorial-ink">Cover crop tool</p>
             <p className="text-sm leading-6 text-editorial-muted">
-              Position the image in the 16:9 frame so it matches the public cover display.
+              Position the source image for both public display sizes. The form will upload a 16:9
+              cover and a separate 1:1 square cover image.
             </p>
           </div>
 
-          <div className="aspect-[16/9] overflow-hidden rounded-card border border-editorial-line bg-editorial-white">
-            {/* eslint-disable-next-line @next/next/no-img-element -- Local object URL previews cannot use next/image. */}
-            <img
-              ref={imageRef}
-              alt="Selected cover crop preview"
-              className="h-full w-full object-cover"
-              src={previewUrl}
-              style={{
-                objectPosition: `${crop.offsetX}% ${crop.offsetY}%`,
-                transform: `scale(${crop.zoom / 100})`,
-                transformOrigin: `${crop.offsetX}% ${crop.offsetY}%`,
-              }}
-            />
-          </div>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(260px,420px)]">
+            <section className="grid gap-4" aria-labelledby="cover-crop-heading">
+              <div className="grid gap-2">
+                <h3
+                  className="text-sm font-bold uppercase text-editorial-ink"
+                  id="cover-crop-heading"
+                >
+                  16:9 cover crop
+                </h3>
+                <p className="text-sm leading-6 text-editorial-muted">
+                  Match the wide public cover display.
+                </p>
+              </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <label className="grid gap-2 text-sm font-bold text-editorial-ink">
-              Zoom
-              <input
-                max="300"
-                min="100"
-                onChange={updateCrop("zoom")}
-                step="5"
-                type="range"
-                value={crop.zoom}
-              />
-            </label>
-            <label className="grid gap-2 text-sm font-bold text-editorial-ink">
-              Horizontal position
-              <input
-                max="100"
-                min="0"
-                onChange={updateCrop("offsetX")}
-                step="1"
-                type="range"
-                value={crop.offsetX}
-              />
-            </label>
-            <label className="grid gap-2 text-sm font-bold text-editorial-ink">
-              Vertical position
-              <input
-                max="100"
-                min="0"
-                onChange={updateCrop("offsetY")}
-                step="1"
-                type="range"
-                value={crop.offsetY}
-              />
-            </label>
+              <div className="aspect-[16/9] overflow-hidden rounded-card border border-editorial-line bg-editorial-white">
+                {/* eslint-disable-next-line @next/next/no-img-element -- Local object URL previews cannot use next/image. */}
+                <img
+                  ref={imageRef}
+                  alt="Selected 16:9 cover crop preview"
+                  className="h-full w-full object-cover"
+                  src={previewUrl}
+                  style={cropPreviewStyle(coverCrop)}
+                />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="grid gap-2 text-sm font-bold text-editorial-ink">
+                  Zoom
+                  <input
+                    max="300"
+                    min="100"
+                    onChange={updateCoverCrop("zoom")}
+                    step="5"
+                    type="range"
+                    value={coverCrop.zoom}
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-bold text-editorial-ink">
+                  Horizontal position
+                  <input
+                    max="100"
+                    min="0"
+                    onChange={updateCoverCrop("offsetX")}
+                    step="1"
+                    type="range"
+                    value={coverCrop.offsetX}
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-bold text-editorial-ink">
+                  Vertical position
+                  <input
+                    max="100"
+                    min="0"
+                    onChange={updateCoverCrop("offsetY")}
+                    step="1"
+                    type="range"
+                    value={coverCrop.offsetY}
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="grid gap-4" aria-labelledby="square-crop-heading">
+              <div className="grid gap-2">
+                <h3
+                  className="text-sm font-bold uppercase text-editorial-ink"
+                  id="square-crop-heading"
+                >
+                  Square 1:1 crop
+                </h3>
+                <p className="text-sm leading-6 text-editorial-muted">
+                  Adjust the square image that will be uploaded as a separate storage object.
+                </p>
+              </div>
+
+              <div className="aspect-square overflow-hidden rounded-card border border-editorial-line bg-editorial-white">
+                {/* eslint-disable-next-line @next/next/no-img-element -- Local object URL previews cannot use next/image. */}
+                <img
+                  alt="Selected square cover crop preview"
+                  className="h-full w-full object-cover"
+                  src={previewUrl}
+                  style={cropPreviewStyle(squareCrop)}
+                />
+              </div>
+
+              <div className="grid gap-3">
+                <label className="grid gap-2 text-sm font-bold text-editorial-ink">
+                  Zoom
+                  <input
+                    max="300"
+                    min="100"
+                    onChange={updateSquareCrop("zoom")}
+                    step="5"
+                    type="range"
+                    value={squareCrop.zoom}
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-bold text-editorial-ink">
+                  Horizontal position
+                  <input
+                    max="100"
+                    min="0"
+                    onChange={updateSquareCrop("offsetX")}
+                    step="1"
+                    type="range"
+                    value={squareCrop.offsetX}
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-bold text-editorial-ink">
+                  Vertical position
+                  <input
+                    max="100"
+                    min="0"
+                    onChange={updateSquareCrop("offsetY")}
+                    step="1"
+                    type="range"
+                    value={squareCrop.offsetY}
+                  />
+                </label>
+              </div>
+            </section>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button className="editorial-button w-fit" onClick={handleApplyClick} type="button">
-              Apply 16:9 crop
+              Apply cover crops
             </button>
             <p aria-live="polite" className="text-sm leading-6 text-editorial-muted">
               {status}
