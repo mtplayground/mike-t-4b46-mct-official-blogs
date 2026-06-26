@@ -1,20 +1,26 @@
-Architecture plan for issue #106
+Architecture plan for Issues #108-#111
 
-Scope:
-- Update the existing MyClawTeamCard in app/(public)/blog/[slug]/page.tsx.
-- Move the card so it renders after the author aside instead of between the Markdown article body and author card.
-- Replace the placeholder text mark with the issue-specified remote logo image.
-- Replace the card copy and social links with the exact issue-provided content.
+Module structure and file organization
+- Data model: extend `prisma/schema.prisma` `Post` model with `views Int @default(0)` and add a new Prisma migration containing `ALTER TABLE "posts" ADD COLUMN "views" INTEGER NOT NULL DEFAULT 0;`.
+- API: add `app/api/posts/[slug]/views/route.ts` for post view reads/increments. Keep route logic server-only and use the existing `prisma` singleton from `lib/db/prisma` plus `PostStatus` from `@prisma/client`.
+- UI: add `components/blog/article-engagement.tsx` as a client component. It should increment views once on mount by POSTing to `/api/posts/${slug}/views`, display the returned count as `N views`, expose native `navigator.share` when available, and render fallback links for X, LinkedIn, Facebook plus Copy link.
+- Article page integration: update `app/(public)/blog/[slug]/page.tsx` to import and render `ArticleEngagement`, passing `post.slug`, `post.title`, and the canonical article URL built with existing `absoluteSiteUrl(`/blog/${post.slug}`)`.
+- Tests: add `tests/article-engagement.test.ts` using the repository's existing Node test style to assert the Prisma schema field, article page integration, and required share URLs in the client component.
 
-Module structure and file organization:
-- Keep MyClawTeamCard colocated in app/(public)/blog/[slug]/page.tsx because it remains article-page-specific and uses only presentational markup.
-- Do not introduce backend routes, schema changes, persistent state, auth, email, or object-storage behavior.
-- Reuse existing editorial Tailwind classes and link styling patterns from the article page.
+Shared types and contracts
+- API response shape should stay minimal and shared by convention: `{ views: number }` on success and `{ error: string }` with 404 for missing/unpublished posts.
+- Published-post access rules should match existing content visibility semantics: `status === PostStatus.PUBLISHED` and `publishedAt != null`.
+- The client component should not require additional dependencies; use browser `fetch`, `navigator.share`, and `navigator.clipboard`.
 
-Dependencies between issues:
-- Single issue in this batch. It corrects the card shipped by earlier article-page work and depends only on that component already existing.
+Issue dependencies
+- #108 must land first because #109 relies on `Post.views` in Prisma Client and the database.
+- #109 depends on #108 and provides the API contract consumed by #110.
+- #110 depends on #109 for live view counts and on existing article metadata helpers for the canonical URL.
+- #111 depends on #108-#110 because it verifies schema, API/UI integration points, and share-link implementation.
 
-Key design decisions:
-- Use the exact remote logo path from the issue: https://myclawteam.ai/logo.png.
-- External links should open in a new tab with rel="noreferrer".
-- Preserve article content and author card behavior; only reorder the MyClawTeamCard below the author card.
+Key design decisions
+- Keep article pages cacheable with the existing ISR behavior (`revalidate = 300`) by tracking views through a client-side API call rather than mutating in the server-rendered page.
+- Guard both read and increment paths so drafts/unpublished posts cannot expose or inflate views.
+- Use an atomic Prisma increment for POST after verifying the post is published, avoiding race-prone read/modify/write logic.
+- Style sharing controls with the existing editorial pill/card classes to preserve visual consistency and avoid introducing a UI library.
+- Do not add email or end-user authentication features; these issues only cover anonymous article view tracking and public social sharing.
