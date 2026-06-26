@@ -128,18 +128,59 @@ function serializeJsonLd(value: unknown) {
 }
 
 function MyClawTeamCard() {
+  const socialLinks = [
+    {
+      href: "https://myclawteam.ai/",
+      label: "Website",
+    },
+    {
+      href: "https://www.linkedin.com/company/myclawteam",
+      label: "LinkedIn",
+    },
+    {
+      href: "https://x.com/daogangtang",
+      label: "X",
+    },
+  ];
+
   return (
-    <aside className="grid gap-4 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial">
-      <p className="eyebrow">About myClawTeam</p>
-      <div className="grid gap-4 text-[1.05rem] leading-8 text-editorial-muted">
-        <p>
-          myClawTeam builds AI agents that help teams move faster, stay aligned, and turn
-          their best work into repeatable systems.
-        </p>
-        <p>
-          The Official Journal shares product updates, engineering notes, and practical
-          lessons from building the myClawTeam platform.
-        </p>
+    <aside className="grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial sm:grid-cols-[auto_1fr] sm:items-start">
+      <div
+        aria-hidden="true"
+        className="grid size-16 place-items-center rounded-2xl border border-editorial-red/25 bg-editorial-red text-center font-display text-xl font-semibold tracking-tight text-editorial-white shadow-editorial"
+      >
+        mCT
+      </div>
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <p className="eyebrow">About myClawTeam</p>
+          <h2 className="font-display text-2xl font-semibold leading-tight text-editorial-ink">
+            Your Professional AI Engineering Team
+          </h2>
+        </div>
+        <div className="grid gap-4 text-[1.05rem] leading-8 text-editorial-muted">
+          <p>
+            myClawTeam turns your ideas into production-ready software with a fully GitHub-native
+            AI engineering team. You just talk — we handle the rest.
+          </p>
+          <p>
+            Specialized AI agents plan, build, review, and ship software together. Your code stays
+            in your own GitHub repository.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3 pt-1" aria-label="myClawTeam social links">
+          {socialLinks.map((link) => (
+            <a
+              key={link.href}
+              className="rounded-full border border-editorial-red/25 bg-editorial-white px-4 py-2 text-sm font-bold text-editorial-red transition hover:border-editorial-red hover:bg-editorial-red hover:text-editorial-white"
+              href={link.href}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
       </div>
     </aside>
   );
