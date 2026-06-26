@@ -1,4 +1,4 @@
-import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
+import { getPostImageUrl } from "@/lib/storage/object-storage";
 
 export type MarkdownImageSigner = (relativeKey: string) => Promise<string>;
 
@@ -24,7 +24,7 @@ async function signStorageImageReference(
 
 export async function getSignedMarkdownBody(
   body: string,
-  signer: MarkdownImageSigner = getSignedPostImageUrl,
+  signer: MarkdownImageSigner = getPostImageUrl,
 ) {
   const matches = [...body.matchAll(STORAGE_IMAGE_PATTERN)];
 

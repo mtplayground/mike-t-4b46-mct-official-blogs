@@ -4,7 +4,7 @@ import Link from "next/link";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
 import { prisma } from "@/lib/db/prisma";
 import { buildPageMetadata } from "@/lib/metadata";
-import { getSignedPostImageUrl } from "@/lib/storage/object-storage";
+import { getPostImageUrl } from "@/lib/storage/object-storage";
 
 export const revalidate = 300;
 
@@ -53,7 +53,7 @@ async function withSignedCoverImage(post: PublishedPost): Promise<HomepagePost> 
 
   return {
     ...post,
-    coverImageUrl: await getSignedPostImageUrl(post.coverImageKey),
+    coverImageUrl: await getPostImageUrl(post.coverImageKey),
   };
 }
 
