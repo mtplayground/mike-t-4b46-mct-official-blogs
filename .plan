@@ -1,21 +1,19 @@
-Architecture plan for issues #100 and #101
+Architecture plan for issue #104
 
-Project shape
-- Existing Next.js App Router application with public article rendering in app/(public)/blog/[slug]/page.tsx.
-- Article page currently owns the Markdown renderer, signed image URL resolution, JSON-LD metadata, and author aside markup.
-- No backend/schema changes are required for these two issues.
+Scope:
+- Update the existing MyClawTeamCard in app/(public)/blog/[slug]/page.tsx.
+- This is a presentational correction only: add the intended myClawTeam logo, exact issue-provided copy, and social links.
 
-Module structure and file organization
-- Keep both changes localized to app/(public)/blog/[slug]/page.tsx unless the component grows enough to justify extraction.
-- Add a small MyClawTeamCard presentational component near the existing article-page helpers/components and render it immediately after ReactMarkdown and before the author aside.
-- Add a LinkifiedText helper in the same file to render text segments from post.authorIntro. It should split only URL substrings and preserve surrounding plain text without changing stored data.
+Module structure and file organization:
+- Keep the card colocated in app/(public)/blog/[slug]/page.tsx because the current component is page-specific and already rendered between the Markdown article body and author card.
+- Reuse existing editorial theme utility classes and tokens from the page/global styles rather than adding new styling systems.
+- If the logo already exists in public assets, reference it directly with Next/Image or an img element consistent with existing project conventions. If not, add only the required static asset under public/ with a stable descriptive filename.
 
-Dependencies between issues
-- #100 inserts a new card in the article content flow before the author card.
-- #101 changes the rendering inside the existing author card. It is independent of #100 except both touch the same article page file, so implement in separate branches and rebase/pull main between issues to avoid conflicts.
+Dependencies between issues:
+- Single issue in this batch. It depends on the previously shipped MyClawTeamCard component existing, but has no dependency on new backend/schema/auth/email work.
 
-Key design decisions
-- Use semantic, accessible markup and existing editorial styling tokens for the new about card.
-- LinkifiedText should render external URLs with target="_blank" and rel="noreferrer" and use the editorial red link treatment consistent with Markdown links.
-- Avoid schema, database, auth, email, storage, and routing changes.
-- Do not introduce new dependencies; URL detection can be handled with a small regex and React node composition.
+Key design decisions:
+- No database, API, auth, email, or storage changes are needed.
+- Preserve article-page layout order: ReactMarkdown body, then MyClawTeamCard, then author card.
+- Social links should open in a new tab with rel="noreferrer" and use existing editorial red/link treatment.
+- Keep content exact to the issue when implementation session provides the full copy/social URLs.
