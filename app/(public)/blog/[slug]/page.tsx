@@ -126,6 +126,24 @@ function serializeJsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
+function MyClawTeamCard() {
+  return (
+    <aside className="grid gap-4 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial">
+      <p className="eyebrow">About myClawTeam</p>
+      <div className="grid gap-4 text-[1.05rem] leading-8 text-editorial-muted">
+        <p>
+          myClawTeam builds AI agents that help teams move faster, stay aligned, and turn
+          their best work into repeatable systems.
+        </p>
+        <p>
+          The Official Journal shares product updates, engineering notes, and practical
+          lessons from building the myClawTeam platform.
+        </p>
+      </div>
+    </aside>
+  );
+}
+
 function buildArticleJsonLd({
   authorAvatarUrl,
   coverImageUrl,
@@ -275,6 +293,8 @@ export default async function PostPage({ params }: PostPageProps) {
               <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
                 {signedBody}
               </ReactMarkdown>
+
+              <MyClawTeamCard />
 
               <aside className="mt-8 grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial sm:grid-cols-[auto_1fr] sm:items-center">
                 {authorAvatarUrl ? (
