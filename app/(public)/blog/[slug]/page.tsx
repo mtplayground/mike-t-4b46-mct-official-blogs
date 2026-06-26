@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { ArticleEngagement } from "@/components/blog/article-engagement";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
 import { getSignedMarkdownBody } from "@/lib/content/markdown";
 import { prisma } from "@/lib/db/prisma";
@@ -317,6 +318,7 @@ export default async function PostPage({ params }: PostPageProps) {
     post.authorAvatarKey ? getPostImageUrl(post.authorAvatarKey) : Promise.resolve(null),
     getSignedMarkdownBody(post.body),
   ]);
+  const canonicalUrl = absoluteSiteUrl(`/blog/${post.slug}`);
   const articleJsonLd = buildArticleJsonLd({ authorAvatarUrl, coverImageUrl, post });
 
   return (
@@ -362,6 +364,8 @@ export default async function PostPage({ params }: PostPageProps) {
             ) : null}
 
             <div className="mx-auto grid w-full max-w-3xl gap-7">
+              <ArticleEngagement slug={post.slug} title={post.title} url={canonicalUrl} />
+
               <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
                 {signedBody}
               </ReactMarkdown>
