@@ -20,7 +20,7 @@ export function SiteHeader() {
             src="https://myclawteam.ai/logo.png"
           />
           <span className="grid gap-1">
-            <span className="font-display text-xl font-semibold leading-none text-editorial-ink">
+            <span className="font-sans text-xl font-semibold leading-none text-editorial-ink">
               myClawTeam Blog
             </span>
           </span>

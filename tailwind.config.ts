@@ -18,7 +18,6 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["Arial", "Helvetica Neue", "Helvetica", "sans-serif"],
-        display: ["Georgia", "Times New Roman", "serif"],
       },
       fontSize: {
         eyebrow: ["0.78rem", { lineHeight: "1rem", letterSpacing: "0.08em" }],

@@ -60,14 +60,14 @@ const markdownComponents: Components = {
   },
   h2({ children }) {
     return (
-      <h2 className="pt-6 font-display text-3xl font-semibold leading-tight text-editorial-ink">
+      <h2 className="pt-6 font-sans text-3xl font-semibold leading-tight text-editorial-ink">
         {children}
       </h2>
     );
   },
   h3({ children }) {
     return (
-      <h3 className="pt-4 font-display text-2xl font-semibold leading-snug text-editorial-ink">
+      <h3 className="pt-4 font-sans text-2xl font-semibold leading-snug text-editorial-ink">
         {children}
       </h3>
     );

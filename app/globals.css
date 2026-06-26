@@ -29,7 +29,7 @@
   h1,
   h2,
   h3 {
-    @apply m-0 font-display font-semibold text-editorial-ink;
+    @apply m-0 font-sans font-semibold text-editorial-ink;
   }
 
   p {
