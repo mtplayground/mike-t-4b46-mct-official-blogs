@@ -169,11 +169,24 @@ export async function createPost(formData: FormData) {
   }
 
   const coverImage = getOptionalFile(formData, "coverImage");
+  const squareCoverImage = getOptionalFile(formData, "squareCoverImage");
   const authorAvatar = getOptionalFile(formData, "authorAvatar");
   const inlineImage = getOptionalFile(formData, "inlineImage");
 
+  if (coverImage && !squareCoverImage) {
+    redirectToEditor("/admin/posts/new", {
+      error: "Apply both cover crops before saving a cover image.",
+    });
+  }
+
   if (values.status === PostStatus.PUBLISHED && !coverImage) {
     redirectToEditor("/admin/posts/new", { error: "Cover image is required before publishing." });
+  }
+
+  if (values.status === PostStatus.PUBLISHED && !squareCoverImage) {
+    redirectToEditor("/admin/posts/new", {
+      error: "Square cover image is required before publishing.",
+    });
   }
 
   if (values.status === PostStatus.PUBLISHED && !authorAvatar) {
@@ -185,6 +198,7 @@ export async function createPost(formData: FormData) {
   const uploadedKeys: string[] = [];
   let body = values.body;
   let coverImageKey: string | null = null;
+  let squareCoverImageKey: string | null = null;
   let authorAvatarKey: string | null = null;
   let createdPost: {
     slug: string;
@@ -196,6 +210,12 @@ export async function createPost(formData: FormData) {
       const uploadedCover = await uploadImageFile(coverImage);
       coverImageKey = uploadedCover.key;
       uploadedKeys.push(uploadedCover.key);
+    }
+
+    if (squareCoverImage) {
+      const uploadedSquareCover = await uploadImageFile(squareCoverImage);
+      squareCoverImageKey = uploadedSquareCover.key;
+      uploadedKeys.push(uploadedSquareCover.key);
     }
 
     if (authorAvatar) {
@@ -219,6 +239,7 @@ export async function createPost(formData: FormData) {
         categoryId: values.categoryId,
         coverImageKey,
         excerpt: values.excerpt,
+        squareCoverImageKey,
         isFeatured: values.isFeatured,
         publishedAt: publishedAtForStatus(values.status),
         slug: values.slug,
@@ -268,6 +289,7 @@ export async function updatePost(formData: FormData) {
     authorAvatarKey: string | null;
     coverImageKey: string | null;
     publishedAt: Date | null;
+    squareCoverImageKey: string | null;
     slug: string;
   } | null = null;
 
@@ -277,6 +299,7 @@ export async function updatePost(formData: FormData) {
         authorAvatarKey: true,
         coverImageKey: true,
         publishedAt: true,
+        squareCoverImageKey: true,
         slug: true,
       },
       where: {
@@ -293,20 +316,36 @@ export async function updatePost(formData: FormData) {
   }
 
   const coverImage = getOptionalFile(formData, "coverImage");
+  const squareCoverImage = getOptionalFile(formData, "squareCoverImage");
   const authorAvatar = getOptionalFile(formData, "authorAvatar");
   const inlineImage = getOptionalFile(formData, "inlineImage");
   const removeCover = formData.get("removeCover") === "yes";
+  const removeSquareCover = formData.get("removeSquareCover") === "yes";
   const removeAuthorAvatar = formData.get("removeAuthorAvatar") === "yes";
   const uploadedKeys: string[] = [];
   const oldCoverKey = existingPost.coverImageKey;
+  const oldSquareCoverKey = existingPost.squareCoverImageKey;
   const oldAuthorAvatarKey = existingPost.authorAvatarKey;
   let nextCoverImageKey = removeCover ? null : oldCoverKey;
+  let nextSquareCoverImageKey = removeCover || removeSquareCover ? null : oldSquareCoverKey;
   let nextAuthorAvatarKey = removeAuthorAvatar ? null : oldAuthorAvatarKey;
   let body = values.body;
   let databaseUpdated = false;
 
+  if (coverImage && !squareCoverImage) {
+    redirectToEditor(editorPath, {
+      error: "Apply both cover crops before saving a new cover image.",
+    });
+  }
+
   if (values.status === PostStatus.PUBLISHED && !nextCoverImageKey && !coverImage) {
     redirectToEditor(editorPath, { error: "Cover image is required before publishing." });
+  }
+
+  if (values.status === PostStatus.PUBLISHED && !nextSquareCoverImageKey && !squareCoverImage) {
+    redirectToEditor(editorPath, {
+      error: "Square cover image is required before publishing.",
+    });
   }
 
   if (values.status === PostStatus.PUBLISHED && !nextAuthorAvatarKey && !authorAvatar) {
@@ -320,6 +359,12 @@ export async function updatePost(formData: FormData) {
       const uploadedCover = await uploadImageFile(coverImage);
       nextCoverImageKey = uploadedCover.key;
       uploadedKeys.push(uploadedCover.key);
+    }
+
+    if (squareCoverImage) {
+      const uploadedSquareCover = await uploadImageFile(squareCoverImage);
+      nextSquareCoverImageKey = uploadedSquareCover.key;
+      uploadedKeys.push(uploadedSquareCover.key);
     }
 
     if (authorAvatar) {
@@ -343,6 +388,7 @@ export async function updatePost(formData: FormData) {
         categoryId: values.categoryId,
         coverImageKey: nextCoverImageKey,
         excerpt: values.excerpt,
+        squareCoverImageKey: nextSquareCoverImageKey,
         isFeatured: values.isFeatured,
         publishedAt: publishedAtForStatus(values.status, existingPost.publishedAt),
         slug: values.slug,
@@ -373,6 +419,14 @@ export async function updatePost(formData: FormData) {
       await deletePostImage(oldCoverKey);
     } catch (error) {
       console.error("Failed to delete replaced cover image", error);
+    }
+  }
+
+  if (oldSquareCoverKey && oldSquareCoverKey !== nextSquareCoverImageKey) {
+    try {
+      await deletePostImage(oldSquareCoverKey);
+    } catch (error) {
+      console.error("Failed to delete replaced square cover image", error);
     }
   }
 

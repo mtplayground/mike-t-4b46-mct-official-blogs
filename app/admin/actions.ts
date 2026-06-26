@@ -37,6 +37,7 @@ export async function publishPost(formData: FormData) {
     authorName: string;
     coverImageKey: string | null;
     publishedAt: Date | null;
+    squareCoverImageKey: string | null;
     slug: string;
     title: string;
   } | null = null;
@@ -49,6 +50,7 @@ export async function publishPost(formData: FormData) {
         authorName: true,
         coverImageKey: true,
         publishedAt: true,
+        squareCoverImageKey: true,
         slug: true,
         title: true,
       },
@@ -67,6 +69,10 @@ export async function publishPost(formData: FormData) {
 
   if (!existingPost.coverImageKey) {
     redirectToAdmin({ error: "Cover image is required before publishing." });
+  }
+
+  if (!existingPost.squareCoverImageKey) {
+    redirectToAdmin({ error: "Square cover image is required before publishing." });
   }
 
   if (!existingPost.authorName.trim()) {
@@ -157,6 +163,7 @@ export async function deletePost(formData: FormData) {
     authorAvatarKey: string | null;
     coverImageKey: string | null;
     slug: string;
+    squareCoverImageKey: string | null;
     title: string;
   } | null = null;
 
@@ -166,6 +173,7 @@ export async function deletePost(formData: FormData) {
         authorAvatarKey: true,
         coverImageKey: true,
         slug: true,
+        squareCoverImageKey: true,
         title: true,
       },
       where: {
@@ -184,6 +192,10 @@ export async function deletePost(formData: FormData) {
   try {
     if (existingPost.coverImageKey) {
       await deletePostImage(existingPost.coverImageKey);
+    }
+
+    if (existingPost.squareCoverImageKey) {
+      await deletePostImage(existingPost.squareCoverImageKey);
     }
 
     if (existingPost.authorAvatarKey) {
