@@ -1,21 +1,21 @@
-Architecture plan for issues #87-#92
+Architecture plan for issues #100 and #101
 
 Project shape
-- Next.js App Router application with public blog pages under app/(public), admin editor under app/admin, shared storage/database utilities under lib, and UI styling through Tailwind/editorial theme tokens.
-- Existing uploaded post images are stored through lib/storage/object-storage.ts and referenced by relative object keys in database-backed post records.
+- Existing Next.js App Router application with public article rendering in app/(public)/blog/[slug]/page.tsx.
+- Article page currently owns the Markdown renderer, signed image URL resolution, JSON-LD metadata, and author aside markup.
+- No backend/schema changes are required for these two issues.
 
-Issue grouping and dependencies
-- #87, #88: Homepage-only presentation changes in app/(public)/page.tsx. These can be applied independently, but should be reviewed together to preserve the Official Journal layout hierarchy.
-- #89, #90: Article page typography changes in app/(public)/blog/[slug]/page.tsx. These are independent CSS class changes but should share heading scale decisions with homepage typography.
-- #92: Shared 16:9 cover treatment spans homepage cards and article cover. Prefer a small shared class/string helper for cover media classes to avoid divergent aspect-ratio rules.
-- #91: Admin post editor enhancement. Add a client-only cover image cropper component colocated under app/admin/posts/_components. It must preserve the existing multipart form/server action flow by assigning the cropped File/Blob to the existing coverImage field before submit, rather than introducing a separate upload endpoint.
+Module structure and file organization
+- Keep both changes localized to app/(public)/blog/[slug]/page.tsx unless the component grows enough to justify extraction.
+- Add a small MyClawTeamCard presentational component near the existing article-page helpers/components and render it immediately after ReactMarkdown and before the author aside.
+- Add a LinkifiedText helper in the same file to render text segments from post.authorIntro. It should split only URL substrings and preserve surrounding plain text without changing stored data.
+
+Dependencies between issues
+- #100 inserts a new card in the article content flow before the author card.
+- #101 changes the rendering inside the existing author card. It is independent of #100 except both touch the same article page file, so implement in separate branches and rebase/pull main between issues to avoid conflicts.
 
 Key design decisions
-- Keep content/markup stable for visual-only issues; only remove requested intro copy and adjust Tailwind classes.
-- Define/reuse 16:9 media styling once where practical, using aspect-[16/9] overflow-hidden and object-cover for consistency across homepage and article pages.
-- For the cropper, avoid new persistence paths. Use browser File APIs/canvas in a client component, keep file size/type validation consistent with existing server-side upload constraints, and maintain accessible controls for crop preview and confirmation.
-- No new auth or email platform integrations are required by these issues.
-
-Validation plan
-- Run npm test and npm run lint after each issue when relevant.
-- For cropper work, also verify admin editor form still submits multipart/form-data and that server actions receive coverImage under the existing field name.
+- Use semantic, accessible markup and existing editorial styling tokens for the new about card.
+- LinkifiedText should render external URLs with target="_blank" and rel="noreferrer" and use the editorial red link treatment consistent with Markdown links.
+- Avoid schema, database, auth, email, storage, and routing changes.
+- Do not introduce new dependencies; URL detection can be handled with a small regex and React node composition.

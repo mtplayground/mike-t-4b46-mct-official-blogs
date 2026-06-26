@@ -10,6 +10,7 @@ node_modules/
 .pipeline-state.json
 .gitkeep
 .progress
-.env.production
-.deploy_url
-.authemail_decision
+.next/
+dist/
+build/
+out/
