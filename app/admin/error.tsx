@@ -21,7 +21,7 @@ export default function AdminError({ error, reset }: AdminErrorProps) {
           Try again
         </button>
       }
-      description="The admin view could not be loaded. If you were submitting images, keep the combined image upload under 25 MB and retry; otherwise check the server logs."
+      description="The admin view could not be loaded. If you were submitting images, keep the combined image upload under 50 MB and retry; otherwise check the server logs."
       eyebrow="Admin error"
       title="The admin request could not be completed."
     />
