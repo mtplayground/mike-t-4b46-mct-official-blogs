@@ -1,19 +1,20 @@
-Architecture plan for issue #104
+Architecture plan for issue #106
 
 Scope:
 - Update the existing MyClawTeamCard in app/(public)/blog/[slug]/page.tsx.
-- This is a presentational correction only: add the intended myClawTeam logo, exact issue-provided copy, and social links.
+- Move the card so it renders after the author aside instead of between the Markdown article body and author card.
+- Replace the placeholder text mark with the issue-specified remote logo image.
+- Replace the card copy and social links with the exact issue-provided content.
 
 Module structure and file organization:
-- Keep the card colocated in app/(public)/blog/[slug]/page.tsx because the current component is page-specific and already rendered between the Markdown article body and author card.
-- Reuse existing editorial theme utility classes and tokens from the page/global styles rather than adding new styling systems.
-- If the logo already exists in public assets, reference it directly with Next/Image or an img element consistent with existing project conventions. If not, add only the required static asset under public/ with a stable descriptive filename.
+- Keep MyClawTeamCard colocated in app/(public)/blog/[slug]/page.tsx because it remains article-page-specific and uses only presentational markup.
+- Do not introduce backend routes, schema changes, persistent state, auth, email, or object-storage behavior.
+- Reuse existing editorial Tailwind classes and link styling patterns from the article page.
 
 Dependencies between issues:
-- Single issue in this batch. It depends on the previously shipped MyClawTeamCard component existing, but has no dependency on new backend/schema/auth/email work.
+- Single issue in this batch. It corrects the card shipped by earlier article-page work and depends only on that component already existing.
 
 Key design decisions:
-- No database, API, auth, email, or storage changes are needed.
-- Preserve article-page layout order: ReactMarkdown body, then MyClawTeamCard, then author card.
-- Social links should open in a new tab with rel="noreferrer" and use existing editorial red/link treatment.
-- Keep content exact to the issue when implementation session provides the full copy/social URLs.
+- Use the exact remote logo path from the issue: https://myclawteam.ai/logo.png.
+- External links should open in a new tab with rel="noreferrer".
+- Preserve article content and author card behavior; only reorder the MyClawTeamCard below the author card.
