@@ -1,6 +1,7 @@
 import { PostStatus } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -142,6 +143,51 @@ function MyClawTeamCard() {
       </div>
     </aside>
   );
+}
+
+function LinkifiedText({ text }: { text: string }) {
+  const urlPattern = /https?:\/\/\S+/g;
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = urlPattern.exec(text))) {
+    const [matchedUrl] = match;
+    const start = match.index;
+
+    if (start > lastIndex) {
+      nodes.push(text.slice(lastIndex, start));
+    }
+
+    const trailingPunctuation = matchedUrl.match(/[).,!?:;]+$/u)?.[0] ?? "";
+    const url = trailingPunctuation
+      ? matchedUrl.slice(0, matchedUrl.length - trailingPunctuation.length)
+      : matchedUrl;
+
+    nodes.push(
+      <a
+        key={`${url}-${start}`}
+        className="font-bold text-editorial-red underline decoration-editorial-red decoration-2 underline-offset-4 transition hover:text-editorial-ink"
+        href={url}
+        rel="noreferrer"
+        target="_blank"
+      >
+        {url}
+      </a>,
+    );
+
+    if (trailingPunctuation) {
+      nodes.push(trailingPunctuation);
+    }
+
+    lastIndex = start + matchedUrl.length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return <>{nodes.length ? nodes : text}</>;
 }
 
 function buildArticleJsonLd({
@@ -306,7 +352,9 @@ export default async function PostPage({ params }: PostPageProps) {
                 <div className="grid gap-2">
                   <p className="eyebrow">Written by</p>
                   <h2 className="text-2xl font-semibold text-editorial-ink">{post.authorName}</h2>
-                  <p className="leading-7 text-editorial-muted">{post.authorIntro}</p>
+                  <p className="leading-7 text-editorial-muted">
+                    <LinkifiedText text={post.authorIntro} />
+                  </p>
                 </div>
               </aside>
             </div>
