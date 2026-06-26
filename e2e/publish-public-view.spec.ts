@@ -56,6 +56,7 @@ test.afterAll(async () => {
     select: {
       authorAvatarKey: true,
       coverImageKey: true,
+      squareCoverImageKey: true,
     },
     where: {
       slug,
@@ -64,6 +65,7 @@ test.afterAll(async () => {
 
   await Promise.allSettled([
     ...(post?.coverImageKey ? [deletePostImage(post.coverImageKey)] : []),
+    ...(post?.squareCoverImageKey ? [deletePostImage(post.squareCoverImageKey)] : []),
     ...(post?.authorAvatarKey ? [deletePostImage(post.authorAvatarKey)] : []),
     prisma.post.deleteMany({
       where: {
@@ -110,10 +112,15 @@ test("admin publishes a post that drives the homepage, detail page, and newslett
   await page.getByLabel("Category").selectOption({ label: "Thoughts" });
   await page.getByLabel("Published").check();
   await page.getByLabel("Featured article").check();
-  await page.getByLabel("Cover image").setInputFiles({
+  await page.getByLabel("Cover image, 16:9").setInputFiles({
     buffer: tinyPng,
     mimeType: "image/png",
     name: "cover.png",
+  });
+  await page.getByLabel("Square cover image, 1:1").setInputFiles({
+    buffer: tinyPng,
+    mimeType: "image/png",
+    name: "square-cover.png",
   });
   await page.getByLabel("Author name").fill(authorName);
   await page.getByLabel("Author intro").fill(authorIntro);
@@ -138,6 +145,7 @@ test("admin publishes a post that drives the homepage, detail page, and newslett
           coverImageKey: true,
           isFeatured: true,
           publishedAt: true,
+          squareCoverImageKey: true,
           status: true,
         },
         where: {
@@ -148,7 +156,9 @@ test("admin publishes a post that drives the homepage, detail page, and newslett
     .toMatchObject({
       authorIntro,
       authorName,
+      coverImageKey: expect.any(String),
       isFeatured: true,
+      squareCoverImageKey: expect.any(String),
       status: PostStatus.PUBLISHED,
     });
 
