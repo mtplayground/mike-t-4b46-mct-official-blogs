@@ -1,21 +1,19 @@
-Architecture plan for issues #118-#120
+Architecture plan for Issue #124: Display the square cover image in the homepage hero
 
 Module structure and file organization:
-- Data model: extend `prisma/schema.prisma` Post with nullable `squareCoverImageKey` mapped to `square_cover_image_key`; add a Prisma migration under `prisma/migrations/<timestamp>_add_square_cover_image_key/migration.sql`.
-- Admin UI: keep the crop UI encapsulated in `app/admin/posts/_components/cover-image-cropper.tsx`. Rework it into a dual-output component that owns the original selected local image, separate crop state for the 16:9 cover and the 1:1 square crop, two canvas export helpers, and two file assignments: existing `coverImage` plus new hidden/file input `squareCoverImage`.
-- Server actions: update `app/admin/posts/actions.ts` to parse, validate, upload, persist, replace, rollback, and delete both cover object keys. Reuse existing `uploadImageFile`, `deletePostImage`, and uploaded-key rollback patterns.
-- Admin delete/publish actions: update any post deletion cleanup in `app/admin/actions.ts` to delete `squareCoverImageKey` alongside `coverImageKey`.
-- Public content: existing public rendering can continue using `coverImageKey` for 16:9 displays unless a later issue asks for square presentation; the square key is stored for future consumers.
+- Homepage hero rendering lives in app/(public)/page.tsx. This page fetches the featured/latest post, resolves cover image URLs server-side, and renders the hero and article grid.
+- Shared cover-media Tailwind class constants live in lib/content/cover-media.ts and are used by homepage cards and article views for standard 16:9 cover display.
+- Post image storage helpers live in lib/storage/object-storage.ts and should continue to be used to convert private storage keys into stable/signed display URLs.
+- Prisma Post data model already contains post image keys. Issue #124 specifically requires using squareCoverImageKey for the homepage hero image source.
 
 Dependencies between issues:
-- #118 is the foundation: schema and migration must land before server code can persist the new key.
-- #119 can be developed after or in parallel conceptually, but final integration depends on the field name expected by #120: `squareCoverImage` form field.
-- #120 depends on #118 for Prisma fields and on #119 for receiving the square file from the form.
+- Only one issue is in scope. No cross-issue dependency is present.
+- The homepage hero change should not alter the article card/image layout unless the existing shared 16:9 constants are intentionally left for non-hero usages.
 
 Key design decisions:
-- Preserve the existing `coverImage` field as the 16:9 cover upload to minimize public-display changes.
-- Add `squareCoverImage` as a second form file output generated client-side from an admin-adjustable 1:1 crop.
-- Generate JPEG outputs via canvas with deterministic suffixes such as `-16x9-cover.jpg` and `-1x1-square-cover.jpg`.
-- Treat the two cover uploads as an atomic pair during create/update: rollback any uploaded objects if the database write fails.
-- On replacement/removal/delete, clean up both old object-storage keys to avoid orphaned files.
-- Validation should require both cover files before publishing a new/replaced cover, while existing posts may retain previously stored keys.
+- Keep the hero text/content behavior unchanged: featured post first, otherwise latest post.
+- Extend the homepage post data shape with a separate square cover URL resolved server-side from squareCoverImageKey.
+- Render the hero image in an aspect-square frame instead of the current fixed-height 16:9-style frame.
+- Prefer the square cover image for the hero. If a post lacks a square cover image, gracefully fall back to the existing cover image URL so the hero remains populated rather than showing an avoidable empty state.
+- Leave existing 16:9 cover media classes intact for article cards and other cover image displays.
+- Avoid new dependencies; this is a small rendering/data-selection change within the existing Next.js/Prisma/storage structure.
