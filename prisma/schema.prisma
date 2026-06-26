@@ -31,23 +31,24 @@ model Category {
 }
 
 model Post {
-  id              String     @id @default(cuid())
-  title           String
-  slug            String     @unique
-  excerpt         String     @db.VarChar(320)
-  body            String
-  coverImageKey   String?    @map("cover_image_key")
-  isFeatured      Boolean    @default(false) @map("is_featured")
-  views           Int        @default(0)
-  authorName      String     @default("") @map("author_name")
-  authorIntro     String     @default("") @map("author_intro") @db.VarChar(500)
-  authorAvatarKey String?    @map("author_avatar_key")
-  status          PostStatus @default(DRAFT)
-  publishedAt     DateTime?  @map("published_at")
-  categoryId      String     @map("category_id")
-  category        Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  id                  String     @id @default(cuid())
+  title               String
+  slug                String     @unique
+  excerpt             String     @db.VarChar(320)
+  body                String
+  coverImageKey       String?    @map("cover_image_key")
+  squareCoverImageKey String?    @map("square_cover_image_key")
+  isFeatured          Boolean    @default(false) @map("is_featured")
+  views               Int        @default(0)
+  authorName          String     @default("") @map("author_name")
+  authorIntro         String     @default("") @map("author_intro") @db.VarChar(500)
+  authorAvatarKey     String?    @map("author_avatar_key")
+  status              PostStatus @default(DRAFT)
+  publishedAt         DateTime?  @map("published_at")
+  categoryId          String     @map("category_id")
+  category            Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
 
   @@index([categoryId])
   @@index([status, publishedAt])
