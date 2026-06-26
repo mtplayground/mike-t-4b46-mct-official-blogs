@@ -130,49 +130,34 @@ function serializeJsonLd(value: unknown) {
 function MyClawTeamCard() {
   const socialLinks = [
     {
-      href: "https://myclawteam.ai/",
-      label: "Website",
-    },
-    {
-      href: "https://www.linkedin.com/company/myclawteam",
-      label: "LinkedIn",
-    },
-    {
-      href: "https://x.com/daogangtang",
+      href: "https://x.com/myclawteam_ai",
       label: "X",
+    },
+    {
+      href: "https://discord.gg/p8RtDfjmWK",
+      label: "Discord",
     },
   ];
 
   return (
     <aside className="grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial sm:grid-cols-[auto_1fr] sm:items-start">
-      <div
-        aria-hidden="true"
-        className="grid size-16 place-items-center rounded-2xl border border-editorial-red/25 bg-editorial-red text-center font-display text-xl font-semibold tracking-tight text-editorial-white shadow-editorial"
-      >
-        mCT
-      </div>
+      <img
+        alt="myClawTeam logo"
+        className="h-12 w-auto"
+        src="https://myclawteam.ai/logo.png"
+      />
       <div className="grid gap-4">
-        <div className="grid gap-2">
-          <p className="eyebrow">About myClawTeam</p>
-          <h2 className="font-display text-2xl font-semibold leading-tight text-editorial-ink">
-            Your Professional AI Engineering Team
-          </h2>
-        </div>
-        <div className="grid gap-4 text-[1.05rem] leading-8 text-editorial-muted">
-          <p>
-            myClawTeam turns your ideas into production-ready software with a fully GitHub-native
-            AI engineering team. You just talk — we handle the rest.
-          </p>
-          <p>
-            Specialized AI agents plan, build, review, and ship software together. Your code stays
-            in your own GitHub repository.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3 pt-1" aria-label="myClawTeam social links">
+        <p className="eyebrow">About myClawTeam</p>
+        <p className="text-[1.05rem] leading-8 text-editorial-muted">
+          myClawTeam AI (MCT) is a professional AI agent team cloud to help you ship high-quality
+          software easily. myClawTeam turns your ideas into production-ready software within hours.
+          You just talk — we handle the rest.
+        </p>
+        <div className="flex flex-wrap gap-4 pt-1" aria-label="myClawTeam social links">
           {socialLinks.map((link) => (
             <a
               key={link.href}
-              className="rounded-full border border-editorial-red/25 bg-editorial-white px-4 py-2 text-sm font-bold text-editorial-red transition hover:border-editorial-red hover:bg-editorial-red hover:text-editorial-white"
+              className="font-bold text-editorial-red underline decoration-editorial-red decoration-2 underline-offset-4 transition hover:text-editorial-ink"
               href={link.href}
               rel="noreferrer"
               target="_blank"
@@ -381,8 +366,6 @@ export default async function PostPage({ params }: PostPageProps) {
                 {signedBody}
               </ReactMarkdown>
 
-              <MyClawTeamCard />
-
               <aside className="mt-8 grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial sm:grid-cols-[auto_1fr] sm:items-center">
                 {authorAvatarUrl ? (
                   <figure className="size-24 overflow-hidden rounded-full border border-editorial-line bg-editorial-white">
@@ -398,6 +381,8 @@ export default async function PostPage({ params }: PostPageProps) {
                   </p>
                 </div>
               </aside>
+
+              <MyClawTeamCard />
             </div>
           </div>
         </section>
