@@ -11,4 +11,12 @@ node_modules/
 .gitkeep
 .progress
 .next/
-.env.local
+dist/
+build/
+out/
+.env
+.env.*
+!.env.example
+.authemail_decision
+verify-screenshot.png
+ui-verify.js

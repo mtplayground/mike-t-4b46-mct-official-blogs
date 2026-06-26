@@ -1,21 +1,26 @@
-Architecture plan for Issue #128: Fix stale "25 MB" copy in the admin error boundary
+Architecture plan for Issues #130 and #131: direct dual cover-image upload
 
 Project shape:
-- Next.js App Router application with TypeScript, React, Tailwind CSS, Prisma/PostgreSQL, and S3-compatible object storage.
-- Public app routes live under app/(public); admin routes and admin server actions live under app/admin.
-- Shared domain helpers live under lib/, reusable UI components under components/, and database schema/migrations under prisma/.
+- Next.js App Router app using TypeScript, React, Tailwind CSS, Prisma/PostgreSQL, and S3-compatible object storage.
+- Public reader routes live under app/(public); admin CMS routes, server actions, and post editor UI live under app/admin.
+- Post persistence uses prisma/schema.prisma Post fields coverImageKey and squareCoverImageKey; upload/delete/signing helpers live in lib/storage/object-storage.ts.
+- Admin post creation/update validation and upload orchestration live in app/admin/posts/actions.ts.
 
 Relevant module/file organization:
-- app/admin/error.tsx owns the admin error boundary UI and retry messaging.
-- next.config.ts configures the server action/body size limit at 50mb.
-- app/admin/posts/_components/post-upload-size-warning.tsx already communicates the 50 MB upload limit in the admin editor.
+- app/admin/posts/_components/post-editor-form.tsx owns the admin post form and should expose two normal file inputs: coverImage for 16:9 and squareCoverImage for 1:1.
+- app/admin/posts/_components/cover-image-cropper.tsx currently owns client-side cropping, object URL previews, canvas export, hidden square input population, and submit replay; Issue #130 removes this component entirely.
+- app/admin/posts/actions.ts already expects both coverImage and squareCoverImage File fields and enforces that a new/replacement cover upload includes both crops, so the server action can remain the integration point.
+- tests/post-editor-upload-config.test.ts should become the primary unit/config guard for the direct-upload form shape.
+- e2e/publish-public-view.spec.ts should upload both image fields directly instead of interacting with cropper controls.
 
 Issue dependency analysis:
-- There is only one issue in this batch.
-- It is an isolated copy-only fix with no schema, API, auth, storage, or routing dependencies.
-- No shared types or new dependencies are needed.
+- Issue #130 is the implementation change: remove the cropper component and hidden square field, then add visible file inputs for both required cover image variants.
+- Issue #131 depends on #130's final UI shape: tests and E2E flows should assert/use the two direct file inputs and remove cropper-specific expectations.
+- No database, Prisma migration, storage API, or server action redesign is required because the existing data model and server actions already handle both image keys.
 
 Key design decisions:
-- Update only the stale user-facing text in app/admin/error.tsx from 25 MB to 50 MB.
-- Preserve the existing admin error boundary structure, styling, retry behavior, and logging behavior.
-- Validate with a lightweight grep/test or lint if needed; full deployment should not require database or storage changes.
+- Keep field names unchanged: coverImage and squareCoverImage, preserving compatibility with createPost/updatePost.
+- Preserve multipart/form-data on the form and existing image accept list: image/jpeg,image/png,image/webp,image/gif.
+- Remove client-side canvas/object URL/crop state complexity instead of leaving unused code paths.
+- Keep publish validation behavior: published posts require both cover images and author avatar/name/intro; drafts may remain incomplete.
+- Update tests after the UI change so they verify direct dual-image upload rather than cropper internals.
