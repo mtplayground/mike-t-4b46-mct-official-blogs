@@ -1,26 +1,22 @@
-Architecture plan for Issues #130 and #131: direct dual cover-image upload
+Architecture plan for Issue #134: Fix invalid slug pattern regex in the post editor
 
 Project shape:
 - Next.js App Router app using TypeScript, React, Tailwind CSS, Prisma/PostgreSQL, and S3-compatible object storage.
-- Public reader routes live under app/(public); admin CMS routes, server actions, and post editor UI live under app/admin.
-- Post persistence uses prisma/schema.prisma Post fields coverImageKey and squareCoverImageKey; upload/delete/signing helpers live in lib/storage/object-storage.ts.
-- Admin post creation/update validation and upload orchestration live in app/admin/posts/actions.ts.
+- Public reader pages live under app/(public); admin CMS pages, editor components, and server actions live under app/admin.
+- The post editor UI is implemented in app/admin/posts/_components/post-editor-form.tsx and submits to app/admin/posts/actions.ts.
 
 Relevant module/file organization:
-- app/admin/posts/_components/post-editor-form.tsx owns the admin post form and should expose two normal file inputs: coverImage for 16:9 and squareCoverImage for 1:1.
-- app/admin/posts/_components/cover-image-cropper.tsx currently owns client-side cropping, object URL previews, canvas export, hidden square input population, and submit replay; Issue #130 removes this component entirely.
-- app/admin/posts/actions.ts already expects both coverImage and squareCoverImage File fields and enforces that a new/replacement cover upload includes both crops, so the server action can remain the integration point.
-- tests/post-editor-upload-config.test.ts should become the primary unit/config guard for the direct-upload form shape.
-- e2e/publish-public-view.spec.ts should upload both image fields directly instead of interacting with cropper controls.
+- app/admin/posts/_components/post-editor-form.tsx owns the slug input and its browser validation attributes.
+- app/admin/posts/actions.ts remains the server-side source of truth for slug normalization via slugify; this issue only fixes the client-side pattern attribute.
+- Existing editor upload tests live in tests/post-editor-upload-config.test.ts, but the requested change is isolated to the form markup unless validation coverage is needed.
 
 Issue dependency analysis:
-- Issue #130 is the implementation change: remove the cropper component and hidden square field, then add visible file inputs for both required cover image variants.
-- Issue #131 depends on #130's final UI shape: tests and E2E flows should assert/use the two direct file inputs and remove cropper-specific expectations.
-- No database, Prisma migration, storage API, or server action redesign is required because the existing data model and server actions already handle both image keys.
+- There is one issue in this batch.
+- No database, storage, authentication, API, or routing changes are required.
+- No shared types or new dependencies are needed.
 
 Key design decisions:
-- Keep field names unchanged: coverImage and squareCoverImage, preserving compatibility with createPost/updatePost.
-- Preserve multipart/form-data on the form and existing image accept list: image/jpeg,image/png,image/webp,image/gif.
-- Remove client-side canvas/object URL/crop state complexity instead of leaving unused code paths.
-- Keep publish validation behavior: published posts require both cover images and author avatar/name/intro; drafts may remain incomplete.
-- Update tests after the UI change so they verify direct dual-image upload rather than cropper internals.
+- Change only the slug input pattern from [a-z0-9-]+ to [a-z0-9\\-]+ so the hyphen is escaped for browser v-flag regex parsing.
+- Preserve the allowed character set: lowercase letters, digits, and hyphen.
+- Preserve all other slug input attributes, labels, styling, and server-side slug handling.
+- Validate with the existing Node/Next toolchain; a full deployment should not require migrations or object storage changes.
