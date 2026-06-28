@@ -2,19 +2,24 @@ mod config;
 mod db;
 mod error;
 mod models;
+mod posts;
+mod storage;
+mod views;
 
 use axum::{extract::State, routing::get, Json, Router};
 use config::AppConfig;
 use db::DbPool;
 use error::AppError;
 use serde::Serialize;
+use storage::StorageClient;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[derive(Clone)]
-struct AppState {
-    pool: DbPool,
+pub(crate) struct AppState {
+    pub(crate) pool: DbPool,
+    pub(crate) storage: StorageClient,
 }
 
 #[derive(Serialize)]
@@ -39,7 +44,8 @@ async fn main() -> Result<(), AppError> {
         "Runtime configuration loaded"
     );
     let pool = db::connect(&config.database_url)?;
-    let app = build_router(AppState { pool });
+    let storage = StorageClient::from_config(&config.object_storage, &config.self_url).await;
+    let app = build_router(AppState { pool, storage });
     let listener = TcpListener::bind(listen_addr).await?;
 
     tracing::info!(%listen_addr, "Rust backend listening");
@@ -60,6 +66,13 @@ fn init_tracing() {
 fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/api/posts", get(posts::list_posts))
+        .route("/api/posts/:slug", get(posts::get_post))
+        .route(
+            "/api/posts/:slug/views",
+            get(views::get_views).post(views::increment_views),
+        )
+        .route("/api/image/*key", get(storage::image_redirect))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }
