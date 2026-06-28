@@ -9,6 +9,7 @@ pub enum PostStatus {
     Published,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Post {
     pub id: String,

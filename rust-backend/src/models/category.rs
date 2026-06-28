@@ -10,6 +10,7 @@ pub enum CategorySlug {
     Announcements,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Category {
     pub id: String,
