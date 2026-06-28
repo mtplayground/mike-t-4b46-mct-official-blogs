@@ -1,22 +1,49 @@
-Architecture plan for Issue #134: Fix invalid slug pattern regex in the post editor
+Architecture plan for Issues #136-#143: Rust Axum backend migration
 
 Project shape:
-- Next.js App Router app using TypeScript, React, Tailwind CSS, Prisma/PostgreSQL, and S3-compatible object storage.
-- Public reader pages live under app/(public); admin CMS pages, editor components, and server actions live under app/admin.
-- The post editor UI is implemented in app/admin/posts/_components/post-editor-form.tsx and submits to app/admin/posts/actions.ts.
+- Existing app is a Next.js App Router + TypeScript frontend/admin UI backed by Prisma/PostgreSQL and S3-compatible object storage through Next API routes/server actions.
+- The planned migration introduces a plain Rust Axum API service while keeping the Next frontend. Rust becomes the owner of runtime API behavior; Next gradually moves to API consumption and finally sheds Node backend dependencies.
+- Database remains the existing PostgreSQL schema and migrations. Object storage remains the existing OBJECT_STORAGE_* configuration and relative-key convention.
 
-Relevant module/file organization:
-- app/admin/posts/_components/post-editor-form.tsx owns the slug input and its browser validation attributes.
-- app/admin/posts/actions.ts remains the server-side source of truth for slug normalization via slugify; this issue only fixes the client-side pattern attribute.
-- Existing editor upload tests live in tests/post-editor-upload-config.test.ts, but the requested change is isolated to the form markup unless validation coverage is needed.
+Proposed module/file organization:
+- rust-backend/Cargo.toml and rust-backend/src/main.rs for Axum/Tokio service bootstrap.
+- rust-backend/src/config.rs for env loading: SELF_URL, DATABASE_URL, explicit ADMIN_USERNAME/ADMIN_PASSWORD or JWT_SECRET fallback, and OBJECT_STORAGE_*.
+- rust-backend/src/db.rs for SQLx PgPool setup and shared query helpers.
+- rust-backend/src/models.rs or per-domain model modules for Category, Post, Subscriber, PostStatus, CategorySlug enum mappings.
+- rust-backend/src/error.rs for API error type, HTTP mapping, and tracing-backed logging before generic 500 responses.
+- rust-backend/src/storage.rs for S3 client construction, OBJECT_STORAGE_PREFIX-safe key validation/prepending, presigned GET URLs, upload/delete helpers, concrete Content-Length handling, and Tigris-compatible checksum settings where applicable.
+- rust-backend/src/public_posts.rs for GET /api/posts, GET /api/posts/:slug, and GET/POST /api/posts/:slug/views.
+- rust-backend/src/images.rs for GET /api/image/*key 307 redirects to fresh presigned URLs.
+- rust-backend/src/newsletter.rs and/or src/subscribers.rs for POST /api/newsletter and subscriber lookup/create logic.
+- rust-backend/src/admin/auth.rs for credential matching, HMAC session creation/verification, cookie handling, and admin guard middleware.
+- rust-backend/src/admin/posts.rs for admin list/create/update/delete/publish/unpublish APIs and multipart image handling.
+- rust-backend/src/admin/subscribers.rs for admin subscriber reads.
+- rust-backend/src/routes.rs to assemble route trees and shared state.
+- rust-backend/tests/ for integration/unit tests mirroring the current TypeScript tests.
+- Next frontend changes remain in app/(public), components, and app/admin pages/components; direct Prisma calls and server actions are removed late in the sequence.
 
-Issue dependency analysis:
-- There is one issue in this batch.
-- No database, storage, authentication, API, or routing changes are required.
-- No shared types or new dependencies are needed.
+Shared types and contracts:
+- Preserve database column names, PostStatus values (DRAFT/PUBLISHED), CategorySlug values, relative object image keys, published visibility rule (status = PUBLISHED and published_at IS NOT NULL), and admin cookie name mct_admin_session.
+- API payloads should match the current UI needs: public post list/detail includes category and signed/proxy image URLs; admin post APIs expose all editor fields and status/action responses; newsletter responses preserve existing message strings/status codes.
+- Store image keys without OBJECT_STORAGE_PREFIX in Post rows. Rust storage helpers must prepend OBJECT_STORAGE_PREFIX for every put/get/delete against S3-compatible storage.
+
+Issue dependencies:
+1. #136 scaffolds the Rust service, config, pool, logging, health endpoint, and typed DB models. It is the foundation for every later Rust API issue.
+2. #137 depends on #136 and implements public read/image/view APIs with storage signing and SQLx queries.
+3. #138 depends on #137 and rewires public Next pages/client widgets to fetch the Rust read APIs while preserving ISR, markdown rendering, engagement, metadata, and article behavior.
+4. #139 depends on #136 and ports newsletter signup. It can run after or in parallel with #137, but frontend form updates depend on the Rust route being available.
+5. #140 depends on #136 and provides admin login/logout/session plus middleware. Admin CMS APIs in #141 depend on this guard.
+6. #141 depends on #140 and storage helpers from #136/#137; it ports admin post/subscriber APIs and multipart uploads.
+7. #142 depends on #138-#141 being complete; only then remove Next API routes/server actions, Prisma client usage, and unused Node/AWS/Prisma dependencies.
+8. #143 spans the final state and should verify Rust behavior plus dual Next/Rust build/deploy wiring after the API migration is complete.
 
 Key design decisions:
-- Change only the slug input pattern from [a-z0-9-]+ to [a-z0-9\\-]+ so the hyphen is escaped for browser v-flag regex parsing.
-- Preserve the allowed character set: lowercase letters, digits, and hyphen.
-- Preserve all other slug input attributes, labels, styling, and server-side slug handling.
-- Validate with the existing Node/Next toolchain; a full deployment should not require migrations or object storage changes.
+- Keep Next as the frontend renderer and introduce Rust as a separate backend artifact, not a rewrite of the UI.
+- Keep PostgreSQL schema/migrations compatible with the existing app; do not create a new schema or duplicate persistence layer.
+- Use SQLx with explicit enum mappings and compile/runtime-safe query patterns appropriate for deployment envs.
+- Preserve exact admin session semantics: HMAC-SHA256, base64url, constant-time comparison, 8-hour max age, HTTP-only SameSite=Lax cookie at path /admin, and credential derivation from JWT_SECRET when explicit admin credentials are absent.
+- Respect reverse-proxy deployment: derive public origin from forwarded headers or configured SELF_URL/ALLOWED_CORS_ORIGIN where needed; never reject own frontend assets due to raw Host mismatch.
+- Storage implementation must be prefix-safe and upload-safe: validate relative keys, prepend OBJECT_STORAGE_PREFIX for all S3 operations, use buffered multipart payloads or concrete lengths for uploads, and keep private bucket reads behind /api/image redirects.
+- Preserve public behavior during migration. Rewire one surface at a time, maintain existing response messages, status codes, cache revalidation expectations, SEO/JSON-LD, and markdown storage image handling.
+- Prefer shared Rust helpers for visibility rules, slugify, published-field validation, email normalization, and storage key validation so API and tests use one source of truth.
+- Build/deploy must eventually run both npm build for Next and cargo build --release for the Axum service, with service startup wiring that launches the correct artifacts.
