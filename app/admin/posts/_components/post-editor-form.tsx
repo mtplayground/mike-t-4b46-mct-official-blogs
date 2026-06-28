@@ -64,7 +64,7 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
             defaultValue={post?.slug}
             maxLength={120}
             name="slug"
-            pattern="[a-z0-9-]+"
+            pattern="[a-z0-9\-]+"
             placeholder="generated-from-title"
             type="text"
           />
