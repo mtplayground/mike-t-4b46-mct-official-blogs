@@ -1,0 +1,25 @@
+[package]
+name = "mct-official-blogs-backend"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+axum = { version = "0.7", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+sqlx = { version = "=0.8.2", default-features = false, features = ["runtime-tokio-rustls", "postgres", "chrono", "macros"] }
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tower-http = { version = "0.6", features = ["trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+home = "=0.5.9"
+url = "=2.5.4"
+idna_adapter = "=1.1.0"
+
+[dev-dependencies]
+serial_test = "3"

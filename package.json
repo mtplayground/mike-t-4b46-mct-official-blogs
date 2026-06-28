@@ -18,7 +18,10 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "backend:dev": "cargo run --manifest-path rust-backend/Cargo.toml",
+    "backend:build": "cargo build --manifest-path rust-backend/Cargo.toml",
+    "backend:test": "cargo test --manifest-path rust-backend/Cargo.toml"
   },
   "repository": {
     "type": "git",
