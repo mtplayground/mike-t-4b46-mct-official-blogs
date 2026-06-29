@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Multipart, Path, State},
+    extract::{multipart::MultipartError, Multipart, Path, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
@@ -18,6 +18,8 @@ use crate::{
 };
 
 const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
+const ADMIN_MULTIPART_TOO_LARGE_MESSAGE: &str =
+    "Selected uploads are too large. Keep combined image uploads under 50 MB.";
 
 #[derive(Debug, Serialize, FromRow)]
 #[serde(rename_all = "camelCase")]
@@ -407,7 +409,7 @@ async fn parse_multipart(mut multipart: Multipart) -> Result<PostForm, AppError>
     while let Some(field) = multipart
         .next_field()
         .await
-        .map_err(|_| AppError::BadRequest("Invalid multipart form."))?
+        .map_err(|error| map_multipart_error(error, "reading next admin multipart field"))?
     {
         let name = field.name().unwrap_or_default().to_owned();
         match name.as_str() {
@@ -426,7 +428,9 @@ async fn parse_multipart(mut multipart: Multipart) -> Result<PostForm, AppError>
                 let text = field
                     .text()
                     .await
-                    .map_err(|_| AppError::BadRequest("Invalid multipart form."))?
+                    .map_err(|error| {
+                        map_multipart_error(error, "reading admin multipart text field")
+                    })?
                     .trim()
                     .to_owned();
                 match name.as_str() {
@@ -454,6 +458,24 @@ async fn parse_multipart(mut multipart: Multipart) -> Result<PostForm, AppError>
     Ok(form)
 }
 
+fn map_multipart_error(error: MultipartError, context: &'static str) -> AppError {
+    let status = error.status();
+    let body_text = error.body_text();
+    tracing::error!(
+        ?error,
+        %status,
+        body_text = %body_text,
+        context,
+        "failed to parse admin multipart form"
+    );
+
+    if status == StatusCode::PAYLOAD_TOO_LARGE {
+        AppError::PayloadTooLarge(ADMIN_MULTIPART_TOO_LARGE_MESSAGE)
+    } else {
+        AppError::BadRequest("Invalid multipart form.")
+    }
+}
+
 async fn parse_image_field(
     field: axum::extract::multipart::Field<'_>,
 ) -> Result<Option<ImageUpload>, AppError> {
@@ -462,7 +484,7 @@ async fn parse_image_field(
     let body = field
         .bytes()
         .await
-        .map_err(|_| AppError::BadRequest("Invalid multipart form."))?
+        .map_err(|error| map_multipart_error(error, "reading admin multipart image field"))?
         .to_vec();
     if body.is_empty() {
         return Ok(None);
@@ -741,6 +763,40 @@ const ADMIN_POST_SELECT_ONE: &str = r#"
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::{
+        body::{to_bytes, Body},
+        extract::DefaultBodyLimit,
+        http::{header, Request, StatusCode},
+        routing::post,
+        Router,
+    };
+    use tower::ServiceExt;
+
+    fn multipart_file_body(
+        boundary: &str,
+        field_name: &str,
+        content_type: &str,
+        bytes: &[u8],
+    ) -> Vec<u8> {
+        let mut body = Vec::new();
+        body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
+        body.extend_from_slice(
+            format!(
+                "Content-Disposition: form-data; name=\"{field_name}\"; filename=\"upload.png\"\r\n"
+            )
+            .as_bytes(),
+        );
+        body.extend_from_slice(format!("Content-Type: {content_type}\r\n\r\n").as_bytes());
+        body.extend_from_slice(bytes);
+        body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+        body
+    }
+
+    async fn parse_only(multipart: Multipart) -> Result<&'static str, AppError> {
+        let _form = parse_multipart(multipart).await?;
+
+        Ok("ok")
+    }
 
     fn publishable_post() -> AdminPost {
         AdminPost {
@@ -775,6 +831,36 @@ mod tests {
     fn supported_image_types_map_to_expected_extensions() {
         assert_eq!(extension_for_content_type("image/webp"), Some("webp"));
         assert_eq!(extension_for_content_type("text/plain"), None);
+    }
+
+    #[tokio::test]
+    async fn multipart_limit_error_returns_clear_upload_size_message() {
+        let boundary = "admin-limit-test-boundary";
+        let body = multipart_file_body(boundary, "coverImage", "image/png", &[b'a'; 256]);
+
+        let response = Router::new()
+            .route("/parse", post(parse_only))
+            .layer(DefaultBodyLimit::max(64))
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/parse")
+                    .header(
+                        header::CONTENT_TYPE,
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .body(Body::from(body))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("response body should be readable");
+        let body_text = String::from_utf8(bytes.to_vec()).expect("response body should be utf8");
+        assert!(body_text.contains(ADMIN_MULTIPART_TOO_LARGE_MESSAGE));
     }
 
     #[test]

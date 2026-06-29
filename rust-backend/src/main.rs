@@ -10,7 +10,7 @@ mod subscribers;
 mod views;
 
 use axum::{
-    extract::State,
+    extract::{DefaultBodyLimit, State},
     routing::{get, post},
     Json, Router,
 };
@@ -22,6 +22,8 @@ use storage::StorageClient;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+const ADMIN_MULTIPART_BODY_LIMIT_BYTES: usize = 50 * 1024 * 1024;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
@@ -118,6 +120,7 @@ fn build_router(state: AppState) -> Router {
             get(views::get_views).post(views::increment_views),
         )
         .route("/api/image/*key", get(storage::image_redirect))
+        .layer(DefaultBodyLimit::max(ADMIN_MULTIPART_BODY_LIMIT_BYTES))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }
@@ -133,7 +136,10 @@ mod tests {
     use super::*;
     use axum::{
         body::Body,
+        extract::Multipart,
         http::{header, Request, StatusCode},
+        routing::post,
+        Router,
     };
     use sqlx::Row;
     use tower::ServiceExt;
@@ -152,6 +158,65 @@ mod tests {
 
         body.push_str(&format!("--{boundary}--\r\n"));
         body
+    }
+
+    fn multipart_file_body(
+        boundary: &str,
+        name: &str,
+        content_type: &str,
+        bytes: &[u8],
+    ) -> Vec<u8> {
+        let mut body = Vec::new();
+        body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
+        body.extend_from_slice(
+            format!(
+                "Content-Disposition: form-data; name=\"{name}\"; filename=\"upload.bin\"\r\n"
+            )
+            .as_bytes(),
+        );
+        body.extend_from_slice(format!("Content-Type: {content_type}\r\n\r\n").as_bytes());
+        body.extend_from_slice(bytes);
+        body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+        body
+    }
+
+    async fn drain_multipart(mut multipart: Multipart) -> Result<&'static str, StatusCode> {
+        while let Some(field) = multipart
+            .next_field()
+            .await
+            .map_err(|_| StatusCode::BAD_REQUEST)?
+        {
+            let _ = field.bytes().await.map_err(|_| StatusCode::BAD_REQUEST)?;
+        }
+
+        Ok("ok")
+    }
+
+    #[tokio::test]
+    async fn configured_multipart_limit_accepts_bodies_above_axum_default() {
+        let boundary = "configured-limit-boundary";
+        let bytes = vec![b'a'; 2 * 1024 * 1024 + 1];
+        let body = multipart_file_body(boundary, "coverImage", "image/png", &bytes);
+        assert!(body.len() < ADMIN_MULTIPART_BODY_LIMIT_BYTES);
+
+        let response = Router::new()
+            .route("/multipart", post(drain_multipart))
+            .layer(DefaultBodyLimit::max(ADMIN_MULTIPART_BODY_LIMIT_BYTES))
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/multipart")
+                    .header(
+                        header::CONTENT_TYPE,
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .body(Body::from(body))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     async fn test_storage() -> StorageClient {
