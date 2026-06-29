@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { getAdminPosts, type AdminPost } from "@/lib/admin/cms-api";
 
-import { deletePost, publishPost, unpublishPost } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +46,7 @@ function StatusBadge({ status }: { status: AdminPost["status"] }) {
 function PublishControls({ post }: { post: AdminPost }) {
   if (post.status === "PUBLISHED") {
     return (
-      <form action={unpublishPost}>
+      <form action={`/api/admin/posts/${post.id}/unpublish`} method="post">
         <input name="postId" type="hidden" value={post.id} />
         <button
           className="inline-flex w-full justify-center rounded-button border border-editorial-line bg-editorial-white px-4 py-2 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
@@ -60,7 +59,7 @@ function PublishControls({ post }: { post: AdminPost }) {
   }
 
   return (
-    <form action={publishPost}>
+    <form action={`/api/admin/posts/${post.id}/publish`} method="post">
       <input name="postId" type="hidden" value={post.id} />
       <button className="editorial-button w-full px-4 py-2" type="submit">
         Publish
@@ -73,7 +72,7 @@ function DeleteControl({ post }: { post: AdminPost }) {
   return (
     <details className="rounded-card border border-editorial-line bg-editorial-white p-4">
       <summary className="cursor-pointer text-sm font-bold text-editorial-red">Delete</summary>
-      <form action={deletePost} className="mt-4 grid gap-4">
+      <form action={`/api/admin/posts/${post.id}/delete`} className="mt-4 grid gap-4" method="post">
         <input name="postId" type="hidden" value={post.id} />
         <label className="flex items-start gap-3 text-sm text-editorial-muted">
           <input
