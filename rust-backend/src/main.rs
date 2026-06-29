@@ -5,6 +5,7 @@ mod error;
 mod models;
 mod newsletter;
 mod posts;
+mod revalidate;
 mod storage;
 mod subscribers;
 mod views;
@@ -14,7 +15,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use config::{AdminCredentials, AppConfig};
+use config::{AdminCredentials, AppConfig, RevalidationConfig};
 use db::DbPool;
 use error::AppError;
 use serde::Serialize;
@@ -30,6 +31,7 @@ pub(crate) struct AppState {
     pub(crate) pool: DbPool,
     pub(crate) storage: StorageClient,
     pub(crate) admin: AdminCredentials,
+    pub(crate) revalidation: RevalidationConfig,
     pub(crate) self_url: String,
 }
 
@@ -60,6 +62,7 @@ async fn main() -> Result<(), AppError> {
         pool,
         storage,
         admin: config.admin,
+        revalidation: config.revalidation,
         self_url: config.self_url,
     });
     let listener = TcpListener::bind(listen_addr).await?;
@@ -309,6 +312,10 @@ mod tests {
             admin: AdminCredentials {
                 username: "admin".to_owned(),
                 password: "secret".to_owned(),
+            },
+            revalidation: RevalidationConfig {
+                url: "http://127.0.0.1:1/api/revalidate".to_owned(),
+                secret: "test-secret".to_owned(),
             },
             self_url: "https://blog.example.com".to_owned(),
         };
