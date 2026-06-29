@@ -19,6 +19,7 @@ pub const ADMIN_SESSION_MAX_AGE_SECONDS: i64 = 8 * 60 * 60;
 const ADMIN_SESSION_MAX_AGE_MILLIS: i64 = ADMIN_SESSION_MAX_AGE_SECONDS * 1000;
 const ADMIN_LOGIN_PATH: &str = "/admin/login";
 const ADMIN_HOME_PATH: &str = "/admin";
+const ADMIN_SESSION_COOKIE_PATH: &str = "/";
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -224,7 +225,7 @@ fn session_cookie(value: &str, max_age: i64, secure: bool) -> String {
     let secure = if secure { "; Secure" } else { "" };
 
     format!(
-        "{ADMIN_SESSION_COOKIE}={value}; Max-Age={max_age}; Path=/admin; HttpOnly; SameSite=Lax{secure}"
+        "{ADMIN_SESSION_COOKIE}={value}; Max-Age={max_age}; Path={ADMIN_SESSION_COOKIE_PATH}; HttpOnly; SameSite=Lax{secure}"
     )
 }
 
@@ -300,6 +301,25 @@ mod tests {
             "editor",
             "correct horse battery staple",
         ));
+    }
+
+    #[test]
+    fn session_cookie_is_scoped_to_root_path_for_admin_api_routes() {
+        let issued_cookie = session_cookie("session-value", ADMIN_SESSION_MAX_AGE_SECONDS, true);
+        assert!(issued_cookie.starts_with(&format!(
+            "{ADMIN_SESSION_COOKIE}=session-value; Max-Age={ADMIN_SESSION_MAX_AGE_SECONDS};"
+        )));
+        assert!(issued_cookie.contains("; Path=/;"));
+        assert!(issued_cookie.contains("; HttpOnly;"));
+        assert!(issued_cookie.contains("; SameSite=Lax"));
+        assert!(issued_cookie.ends_with("; Secure"));
+
+        let cleared_cookie = session_cookie("", 0, false);
+        assert!(cleared_cookie.starts_with(&format!("{ADMIN_SESSION_COOKIE}=; Max-Age=0;")));
+        assert!(cleared_cookie.contains("; Path=/;"));
+        assert!(cleared_cookie.contains("; HttpOnly;"));
+        assert!(cleared_cookie.contains("; SameSite=Lax"));
+        assert!(!cleared_cookie.ends_with("; Secure"));
     }
 
     #[test]
