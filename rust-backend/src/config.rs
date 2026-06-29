@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub self_url: String,
     pub admin: AdminCredentials,
     pub object_storage: ObjectStorageConfig,
+    pub revalidation: RevalidationConfig,
     pub listen_addr: SocketAddr,
 }
 
@@ -30,6 +31,13 @@ pub struct ObjectStorageConfig {
     pub force_path_style: bool,
 }
 
+#[allow(dead_code)]
+#[derive(Clone)]
+pub struct RevalidationConfig {
+    pub url: String,
+    pub secret: String,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     #[error("{0} is required.")]
@@ -44,17 +52,24 @@ pub enum ConfigError {
     ObjectStoragePrefixMissingTrailingSlash,
     #[error("PORT must be a valid u16 port number.")]
     InvalidPort,
+    #[error("REVALIDATE_URL must be a valid absolute URL.")]
+    InvalidRevalidateUrl,
+    #[error("REVALIDATE_SECRET or JWT_SECRET is required.")]
+    MissingRevalidateSecret,
     #[error("listen address could not be constructed: {0}")]
     InvalidListenAddress(std::net::AddrParseError),
 }
 
 impl AppConfig {
     pub fn from_env() -> Result<Self, ConfigError> {
+        let self_url = required_url_env("SELF_URL")?;
+
         Ok(Self {
             database_url: required_url_env("DATABASE_URL")?.to_string(),
-            self_url: required_url_env("SELF_URL")?,
+            self_url: self_url.clone(),
             admin: admin_credentials_from_env()?,
             object_storage: object_storage_from_env()?,
+            revalidation: revalidation_from_env(&self_url)?,
             listen_addr: listen_addr_from_env()?,
         })
     }
@@ -135,6 +150,23 @@ fn object_storage_from_env() -> Result<ObjectStorageConfig, ConfigError> {
     })
 }
 
+fn revalidation_from_env(self_url: &str) -> Result<RevalidationConfig, ConfigError> {
+    let secret = optional_env("REVALIDATE_SECRET")
+        .or_else(|| optional_env("JWT_SECRET"))
+        .ok_or(ConfigError::MissingRevalidateSecret)?;
+    let url = optional_env("REVALIDATE_URL")
+        .unwrap_or_else(|| format!("{}/api/revalidate", self_url.trim_end_matches('/')));
+    let parsed = url
+        .parse::<Uri>()
+        .map_err(|_| ConfigError::InvalidRevalidateUrl)?;
+
+    if parsed.scheme_str().is_none() || parsed.authority().is_none() {
+        return Err(ConfigError::InvalidRevalidateUrl);
+    }
+
+    Ok(RevalidationConfig { url, secret })
+}
+
 fn listen_addr_from_env() -> Result<SocketAddr, ConfigError> {
     let port = match optional_env("PORT") {
         Some(value) => value.parse::<u16>().map_err(|_| ConfigError::InvalidPort)?,
@@ -164,6 +196,8 @@ mod tests {
         "OBJECT_STORAGE_ENDPOINT",
         "OBJECT_STORAGE_REGION",
         "OBJECT_STORAGE_FORCE_PATH_STYLE",
+        "REVALIDATE_SECRET",
+        "REVALIDATE_URL",
         "PORT",
     ];
 
@@ -188,6 +222,7 @@ mod tests {
         env::set_var("OBJECT_STORAGE_ENDPOINT", "https://storage.example.com");
         env::set_var("OBJECT_STORAGE_REGION", "auto");
         env::set_var("OBJECT_STORAGE_FORCE_PATH_STYLE", "true");
+        env::set_var("REVALIDATE_SECRET", "revalidate-secret");
     }
 
     #[test]
@@ -201,7 +236,40 @@ mod tests {
         assert_eq!(config.admin.username, "editor");
         assert_eq!(config.admin.password, "secret");
         assert_eq!(config.object_storage.prefix, "tenant-prefix/");
+        assert_eq!(
+            config.revalidation.url,
+            "https://blog.example.com/api/revalidate"
+        );
+        assert_eq!(config.revalidation.secret, "revalidate-secret");
         assert_eq!(config.listen_addr.to_string(), "0.0.0.0:8080");
+    }
+
+    #[test]
+    #[serial]
+    fn revalidation_url_can_be_overridden() {
+        clear_env();
+        set_required_env();
+        env::set_var("REVALIDATE_URL", "http://127.0.0.1:3000/api/revalidate");
+
+        let config = AppConfig::from_env().expect("config should load");
+
+        assert_eq!(
+            config.revalidation.url,
+            "http://127.0.0.1:3000/api/revalidate"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn revalidation_secret_can_fall_back_to_jwt_secret() {
+        clear_env();
+        set_required_env();
+        env::remove_var("REVALIDATE_SECRET");
+        env::set_var("JWT_SECRET", "jwt-fallback-secret");
+
+        let config = AppConfig::from_env().expect("config should load");
+
+        assert_eq!(config.revalidation.secret, "jwt-fallback-secret");
     }
 
     #[test]

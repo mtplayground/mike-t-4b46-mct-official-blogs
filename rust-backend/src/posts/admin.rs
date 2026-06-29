@@ -14,6 +14,7 @@ use crate::{
     auth,
     error::AppError,
     models::{CategorySlug, PostStatus},
+    revalidate,
     AppState,
 };
 
@@ -142,6 +143,11 @@ pub async fn create_admin_post(
         cleanup_uploaded(&state, &uploaded_keys).await;
     }
     let Json(payload) = result?;
+    revalidate_admin_post_change(
+        &state,
+        payload.post.as_ref().map(|post| post.slug.as_str()),
+    )
+    .await;
     redirect_to_admin_notice(&payload.notice)
 }
 
@@ -165,6 +171,16 @@ pub async fn update_admin_post(
         cleanup_uploaded(&state, &uploaded_keys).await;
     }
     let Json(payload) = result?;
+    revalidate_admin_post_change(
+        &state,
+        payload
+            .post
+            .as_ref()
+            .map(|post| post.slug.as_str())
+            .into_iter()
+            .chain(std::iter::once(existing.slug.as_str())),
+    )
+    .await;
     redirect_to_admin_notice(&payload.notice)
 }
 
@@ -185,6 +201,7 @@ pub async fn publish_admin_post(
     .bind(&id)
     .execute(&state.pool)
     .await?;
+    revalidate_admin_post_change(&state, [existing.slug.as_str()]).await;
     let notice = format!("\"{}\" is now published.", existing.title);
     redirect_to_admin_notice(&notice)
 }
@@ -205,6 +222,7 @@ pub async fn unpublish_admin_post(
     .bind(&id)
     .execute(&state.pool)
     .await?;
+    revalidate_admin_post_change(&state, [existing.slug.as_str()]).await;
     let notice = format!("\"{}\" is now a draft.", existing.title);
     redirect_to_admin_notice(&notice)
 }
@@ -237,8 +255,22 @@ pub async fn delete_admin_post(
         }
     }
 
+    revalidate_admin_post_change(&state, [existing.slug.as_str()]).await;
     let notice = format!("\"{}\" was deleted.", existing.title);
     redirect_to_admin_notice(&notice)
+}
+
+async fn revalidate_admin_post_change<'a, I>(state: &AppState, slugs: I)
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    if let Err(error) = revalidate::trigger_public_revalidation(&state.revalidation, slugs).await {
+        tracing::error!(
+            ?error,
+            revalidate_url = %state.revalidation.url,
+            "failed to revalidate public pages after admin post mutation"
+        );
+    }
 }
 
 fn redirect_to_admin_notice(notice: &str) -> Result<Response, AppError> {
