@@ -1,19 +1,17 @@
-Architecture plan for Issue #152: Add a POST update route for admin post edits
+Architecture plan for Issue #154: Scope the admin session cookie to Path=/
 
-Current architecture:
-- Next.js App Router frontend/admin UI lives under app/ and components/.
-- Admin post forms in app/admin/posts/_components/post-editor-form.tsx submit multipart forms directly to Rust API endpoints.
-- Rust Axum backend lives under rust-backend/src, with route registration centralized in rust-backend/src/main.rs.
-- Admin post CRUD handlers live in rust-backend/src/posts/admin.rs; update_admin_post already handles multipart updates for an existing post.
-- Existing API consumers can update posts through PUT /api/admin/posts/:id.
+Module structure and files:
+- Rust backend authentication is centralized in `rust-backend/src/auth/mod.rs`.
+- Admin session cookie creation/clearing flows through the existing `session_cookie(...)` helper used by both login and logout handlers.
+- Next.js admin pages and forms submit admin mutations to `/api/admin/*`, while the proxy middleware checks `/api/admin/session`; no frontend type or route restructuring is needed.
+- Existing tests for admin session behavior live in Rust module tests and TypeScript tests under `tests/admin-session.test.ts`; update/add focused coverage around cookie Path semantics if needed.
 
-Issue implementation plan:
-- Minimal backend-only route wiring change in rust-backend/src/main.rs.
-- Add POST /api/admin/posts/:id/update to the admin post route set and route it to posts::admin::update_admin_post.
-- Preserve existing PUT /api/admin/posts/:id behavior for API consumers.
-- No new shared types, database migrations, frontend changes, or dependencies are required.
+Dependencies between issues:
+- Only one issue is in scope, so there are no cross-issue dependencies.
+- The fix should remain compatible with existing admin credential/session derivation and logout behavior.
 
-Design decisions:
-- Keep all admin mutation auth/validation/storage cleanup logic in the existing update_admin_post handler to avoid divergence between PUT and form POST paths.
-- Add or update tests only if needed to prove the route is registered; otherwise existing handler-level coverage remains sufficient.
-- The change is independent and has no dependency on other issues.
+Key design decisions:
+- Change the session cookie `Path` attribute from `/admin` to `/` at the shared cookie helper level so every Set-Cookie path, including login and logout/clear-cookie responses, stays consistent.
+- Preserve all existing security attributes: HttpOnly, SameSite=Lax, Max-Age, and Secure when `SELF_URL` is HTTPS.
+- Do not introduce a new auth mechanism or client-side token storage; the existing signed HTTP-only cookie remains the source of truth.
+- Validate by running the existing auth/session tests and, if practical, a targeted backend test asserting that login and logout cookies include `Path=/`.
