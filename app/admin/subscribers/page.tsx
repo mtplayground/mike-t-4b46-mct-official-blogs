@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { prisma } from "@/lib/db/prisma";
+import { getAdminSubscribers } from "@/lib/admin/cms-api";
 
 export const dynamic = "force-dynamic";
 
@@ -14,21 +14,12 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
-function formatSignupDate(date: Date) {
-  return dateFormatter.format(date);
+function formatSignupDate(date: string) {
+  return dateFormatter.format(new Date(date));
 }
 
 export default async function SubscribersPage() {
-  const subscribers = await prisma.subscriber.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-    select: {
-      createdAt: true,
-      email: true,
-      id: true,
-    },
-  });
+  const subscribers = await getAdminSubscribers();
 
   return (
     <section className="section section-cream">
@@ -74,7 +65,7 @@ export default async function SubscribersPage() {
                   </a>
                   <time
                     className="text-editorial-muted"
-                    dateTime={subscriber.createdAt.toISOString()}
+                    dateTime={subscriber.createdAt}
                   >
                     {formatSignupDate(subscriber.createdAt)}
                   </time>

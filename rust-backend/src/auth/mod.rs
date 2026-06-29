@@ -72,6 +72,18 @@ pub async fn logout(State(state): State<AppState>) -> Result<Response, AppError>
     redirect_with_cookie(location, cookie)
 }
 
+pub fn ensure_admin_headers(state: &AppState, headers: &HeaderMap) -> Result<(), AppError> {
+    let authenticated = admin_session_from_headers(headers)
+        .map(|session| verify_admin_session(session, &state.admin.password, now_millis()))
+        .unwrap_or(false);
+
+    if authenticated {
+        Ok(())
+    } else {
+        Err(AppError::Unauthorized("Admin session is required."))
+    }
+}
+
 pub async fn verify_session(
     State(state): State<AppState>,
     headers: HeaderMap,

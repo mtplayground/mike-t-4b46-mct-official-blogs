@@ -1,6 +1,9 @@
 use aws_config::{BehaviorVersion, Region};
 use aws_credential_types::Credentials;
-use aws_sdk_s3::{config::Builder as S3ConfigBuilder, presigning::PresigningConfig, Client};
+use aws_sdk_s3::{
+    config::Builder as S3ConfigBuilder, presigning::PresigningConfig, primitives::ByteStream,
+    Client,
+};
 use axum::{
     extract::{Path, State},
     http::{header, HeaderValue, StatusCode},
@@ -74,6 +77,61 @@ impl StorageClient {
             .join("/");
 
         Ok(format!("{}/api/image/{}", self.self_url, encoded_key))
+    }
+
+    pub async fn put_object(
+        &self,
+        relative_key: &str,
+        body: Vec<u8>,
+        content_type: &str,
+        original_filename: Option<&str>,
+    ) -> Result<(), AppError> {
+        let full_key = self.full_object_key(relative_key)?;
+        let content_length = body.len() as i64;
+        let mut request = self
+            .client
+            .as_ref()
+            .ok_or_else(|| AppError::Storage("S3 client is not configured.".to_owned()))?
+            .put_object()
+            .bucket(&self.bucket)
+            .key(full_key)
+            .body(ByteStream::from(body))
+            .content_type(content_type)
+            .content_length(content_length);
+
+        if let Some(filename) = original_filename {
+            request = request.metadata(
+                "originalFilename",
+                filename
+                    .chars()
+                    .filter(|character| character.is_ascii_graphic() || *character == ' ')
+                    .take(120)
+                    .collect::<String>(),
+            );
+        }
+
+        request
+            .send()
+            .await
+            .map_err(|error| AppError::Storage(error.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn delete_object(&self, relative_key: &str) -> Result<(), AppError> {
+        let full_key = self.full_object_key(relative_key)?;
+
+        self.client
+            .as_ref()
+            .ok_or_else(|| AppError::Storage("S3 client is not configured.".to_owned()))?
+            .delete_object()
+            .bucket(&self.bucket)
+            .key(full_key)
+            .send()
+            .await
+            .map_err(|error| AppError::Storage(error.to_string()))?;
+
+        Ok(())
     }
 
     pub async fn signed_get_url(&self, relative_key: &str) -> Result<String, AppError> {

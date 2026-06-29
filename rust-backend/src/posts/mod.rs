@@ -1,3 +1,5 @@
+pub mod admin;
+
 use axum::{
     extract::{Path, State},
     Json,

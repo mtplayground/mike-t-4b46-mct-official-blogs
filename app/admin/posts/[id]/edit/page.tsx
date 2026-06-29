@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 
-import { prisma } from "@/lib/db/prisma";
+import { getAdminCategories, getAdminPost } from "@/lib/admin/cms-api";
 
 import { PostEditorForm } from "../../_components/post-editor-form";
+
+export const dynamic = "force-dynamic";
 
 type EditPostPageProps = {
   params: Promise<{
@@ -17,35 +19,8 @@ export default async function EditPostPage({ params, searchParams }: EditPostPag
   const { id } = await params;
   const [query, categories, post] = await Promise.all([
     searchParams,
-    prisma.category.findMany({
-      orderBy: {
-        name: "asc",
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-    }),
-    prisma.post.findUnique({
-      select: {
-        authorAvatarKey: true,
-        authorIntro: true,
-        authorName: true,
-        body: true,
-        categoryId: true,
-        coverImageKey: true,
-        excerpt: true,
-        id: true,
-        isFeatured: true,
-        slug: true,
-        squareCoverImageKey: true,
-        status: true,
-        title: true,
-      },
-      where: {
-        id,
-      },
-    }),
+    getAdminCategories(),
+    getAdminPost(id),
   ]);
 
   if (!post) {

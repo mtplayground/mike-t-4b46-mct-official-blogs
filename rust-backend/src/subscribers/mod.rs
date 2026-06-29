@@ -100,3 +100,32 @@ mod tests {
         assert_eq!(normalize_subscriber_email(Some(&json!(too_long))), None);
     }
 }
+
+use axum::{extract::State, http::HeaderMap, Json};
+use chrono::NaiveDateTime;
+use serde::Serialize;
+
+use crate::{auth, error::AppError, AppState};
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct AdminSubscriber {
+    pub id: String,
+    pub email: String,
+    pub created_at: NaiveDateTime,
+}
+
+pub async fn list_admin_subscribers(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<AdminSubscriber>>, AppError> {
+    auth::ensure_admin_headers(&state, &headers)?;
+
+    let subscribers = sqlx::query_as::<_, AdminSubscriber>(
+        "SELECT id, email, created_at FROM subscribers ORDER BY created_at DESC",
+    )
+    .fetch_all(&state.pool)
+    .await?;
+
+    Ok(Json(subscribers))
+}
