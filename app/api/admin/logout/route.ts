@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { ADMIN_SESSION_COOKIE } from "@/lib/admin/session";
 import { getAdminRedirectOrigin } from "@/lib/admin/origin";
+import { getRustAdminApiUrl, redirectFromRustAuthResponse } from "@/lib/admin/rust-auth";
 
-export async function POST(request: Request) {
+function localLogoutFallback(request: Request) {
   const response = NextResponse.redirect(new URL("/admin/login", getAdminRedirectOrigin(request)));
 
   response.cookies.set({
-    name: ADMIN_SESSION_COOKIE,
+    name: "mct_admin_session",
     value: "",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -17,4 +17,21 @@ export async function POST(request: Request) {
   });
 
   return response;
+}
+
+export async function POST(request: Request) {
+  let rustResponse: Response;
+
+  try {
+    rustResponse = await fetch(getRustAdminApiUrl("/api/admin/logout"), {
+      method: "POST",
+      redirect: "manual",
+    });
+  } catch (error) {
+    console.error("Rust admin logout failed:", error);
+
+    return localLogoutFallback(request);
+  }
+
+  return redirectFromRustAuthResponse(request, rustResponse);
 }

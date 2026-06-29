@@ -1,27 +1,21 @@
 import { NextResponse } from "next/server";
 
-import {
-  ADMIN_SESSION_COOKIE,
-  ADMIN_SESSION_MAX_AGE_SECONDS,
-  createAdminSession,
-  adminCredentialsMatch,
-} from "@/lib/admin/session";
 import { getAdminRedirectOrigin } from "@/lib/admin/origin";
-import { getAdminCredentials } from "@/lib/env/server";
+import { getRustAdminApiUrl, redirectFromRustAuthResponse } from "@/lib/admin/rust-auth";
 
-function safeAdminNext(value: FormDataEntryValue | null) {
-  if (
-    typeof value !== "string" ||
-    !value.startsWith("/admin") ||
-    value.startsWith("/admin/login")
-  ) {
-    return "/admin";
+function formDataToUrlEncoded(formData: FormData) {
+  const body = new URLSearchParams();
+
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string") {
+      body.append(key, value);
+    }
   }
 
-  return value;
+  return body;
 }
 
-function redirectToLogin(request: Request) {
+function redirectToLoginWithError(request: Request) {
   const url = new URL("/admin/login", getAdminRedirectOrigin(request));
   url.searchParams.set("error", "invalid");
 
@@ -29,32 +23,22 @@ function redirectToLogin(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
-  const username = formData.get("username");
-  const password = formData.get("password");
-  const nextPath = safeAdminNext(formData.get("next"));
-  const credentials = getAdminCredentials();
+  let rustResponse: Response;
 
-  if (
-    typeof username !== "string" ||
-    typeof password !== "string" ||
-    !adminCredentialsMatch({ username, password }, credentials)
-  ) {
-    return redirectToLogin(request);
+  try {
+    rustResponse = await fetch(getRustAdminApiUrl("/api/admin/login"), {
+      method: "POST",
+      body: formDataToUrlEncoded(await request.formData()),
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      redirect: "manual",
+    });
+  } catch (error) {
+    console.error("Rust admin login failed:", error);
+
+    return redirectToLoginWithError(request);
   }
 
-  const response = NextResponse.redirect(new URL(nextPath, getAdminRedirectOrigin(request)));
-  const session = await createAdminSession(credentials.password);
-
-  response.cookies.set({
-    name: ADMIN_SESSION_COOKIE,
-    value: session,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/admin",
-    maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
-  });
-
-  return response;
+  return redirectFromRustAuthResponse(request, rustResponse);
 }
