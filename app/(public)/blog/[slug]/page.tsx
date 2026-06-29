@@ -1,4 +1,3 @@
-import { PostStatus } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -7,10 +6,8 @@ import remarkGfm from "remark-gfm";
 
 import { ArticleEngagement } from "@/components/blog/article-engagement";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
-import { getSignedMarkdownBody } from "@/lib/content/markdown";
-import { prisma } from "@/lib/db/prisma";
+import { getRustPost, getRustPostList, type RustPost } from "@/lib/api/rust-blog";
 import { absoluteSiteUrl, buildPageMetadata, siteName } from "@/lib/metadata";
-import { getPostImageUrl } from "@/lib/storage/object-storage";
 
 export const revalidate = 300;
 
@@ -78,7 +75,7 @@ const markdownComponents: Components = {
     }
 
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- Markdown storage image URLs are signed server-side before render.
+      // eslint-disable-next-line @next/next/no-img-element -- Markdown storage image URLs are resolved by the Rust image proxy.
       <img
         alt={alt ?? ""}
         className="my-4 w-full rounded-card border border-editorial-line bg-editorial-cream object-cover shadow-editorial"
@@ -108,21 +105,6 @@ const markdownComponents: Components = {
     return <ul className="grid list-disc gap-3 pl-6 text-[1.1rem]">{children}</ul>;
   },
 };
-
-async function getPublishedPost(slug: string) {
-  return prisma.post.findFirst({
-    include: {
-      category: true,
-    },
-    where: {
-      publishedAt: {
-        not: null,
-      },
-      slug,
-      status: PostStatus.PUBLISHED,
-    },
-  });
-}
 
 function serializeJsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
@@ -224,7 +206,7 @@ function buildArticleJsonLd({
 }: {
   authorAvatarUrl: string | null;
   coverImageUrl: string | null;
-  post: NonNullable<Awaited<ReturnType<typeof getPublishedPost>>>;
+  post: RustPost;
 }) {
   const canonicalUrl = absoluteSiteUrl(`/blog/${post.slug}`);
 
@@ -268,17 +250,7 @@ function buildArticleJsonLd({
 }
 
 export async function generateStaticParams() {
-  const posts = await prisma.post.findMany({
-    select: {
-      slug: true,
-    },
-    where: {
-      publishedAt: {
-        not: null,
-      },
-      status: PostStatus.PUBLISHED,
-    },
-  });
+  const { posts } = await getRustPostList();
 
   return posts.map((post) => ({
     slug: post.slug,
@@ -287,7 +259,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PostPageProps) {
   const { slug } = await params;
-  const post = await getPublishedPost(slug);
+  const post = await getRustPost(slug);
 
   if (!post) {
     return buildPageMetadata({
@@ -307,17 +279,15 @@ export async function generateMetadata({ params }: PostPageProps) {
 
 export default async function PostPage({ params }: PostPageProps) {
   const { slug } = await params;
-  const post = await getPublishedPost(slug);
+  const post = await getRustPost(slug);
 
   if (!post) {
     notFound();
   }
 
-  const [coverImageUrl, authorAvatarUrl, signedBody] = await Promise.all([
-    post.coverImageKey ? getPostImageUrl(post.coverImageKey) : Promise.resolve(null),
-    post.authorAvatarKey ? getPostImageUrl(post.authorAvatarKey) : Promise.resolve(null),
-    getSignedMarkdownBody(post.body),
-  ]);
+  const coverImageUrl = post.coverImageUrl;
+  const authorAvatarUrl = post.authorAvatarUrl;
+  const signedBody = post.body;
   const canonicalUrl = absoluteSiteUrl(`/blog/${post.slug}`);
   const articleJsonLd = buildArticleJsonLd({ authorAvatarUrl, coverImageUrl, post });
 
@@ -358,7 +328,7 @@ export default async function PostPage({ params }: PostPageProps) {
               <figure
                 className={`${coverMediaFrameClassName} rounded-card border border-editorial-line shadow-editorial`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element -- Signed private cover URLs are resolved at render time. */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- Private cover URLs are resolved by the Rust image proxy. */}
                 <img alt="" className={coverMediaImageClassName} src={coverImageUrl} />
               </figure>
             ) : null}
@@ -373,7 +343,7 @@ export default async function PostPage({ params }: PostPageProps) {
               <aside className="mt-8 grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial sm:grid-cols-[auto_1fr] sm:items-center">
                 {authorAvatarUrl ? (
                   <figure className="size-24 overflow-hidden rounded-full border border-editorial-line bg-editorial-white">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- Signed private author avatar URLs are resolved at render time. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Private author avatar URLs are resolved by the Rust image proxy. */}
                     <img alt="" className="h-full w-full object-cover" src={authorAvatarUrl} />
                   </figure>
                 ) : null}
