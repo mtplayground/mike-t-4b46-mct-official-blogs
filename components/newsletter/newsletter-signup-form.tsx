@@ -9,6 +9,16 @@ type FormState = {
   message: string;
 };
 
+function newsletterEndpoint() {
+  const rustApiBaseUrl = process.env.NEXT_PUBLIC_RUST_API_BASE_URL;
+
+  if (!rustApiBaseUrl) {
+    return "/api/newsletter";
+  }
+
+  return new URL("/api/newsletter", rustApiBaseUrl).toString();
+}
+
 export function NewsletterSignupForm() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +44,7 @@ export function NewsletterSignupForm() {
     setFormState({ tone: "idle", message: "" });
 
     try {
-      const response = await fetch("/api/newsletter", {
+      const response = await fetch(newsletterEndpoint(), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -11,6 +11,8 @@ pub enum AppError {
     BadRequest(&'static str),
     #[error("{0}")]
     NotFound(&'static str),
+    #[error("{0}")]
+    PublicInternal(&'static str),
     #[error("storage error: {0}")]
     Storage(String),
     #[error(transparent)]
@@ -33,6 +35,7 @@ impl IntoResponse for AppError {
         let (status, message) = match self {
             AppError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
             AppError::NotFound(message) => (StatusCode::NOT_FOUND, message),
+            AppError::PublicInternal(message) => (StatusCode::INTERNAL_SERVER_ERROR, message),
             AppError::Config(_)
             | AppError::Database(_)
             | AppError::Io(_)
