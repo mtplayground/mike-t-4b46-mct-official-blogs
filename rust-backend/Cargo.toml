@@ -9,7 +9,7 @@ aws-config = "=1.5.18"
 aws-credential-types = "=1.2.1"
 aws-sdk-s3 = "=1.71.0"
 aws-smithy-types = "=1.2.13"
-axum = { version = "0.7", features = ["json"] }
+axum = { version = "0.7", features = ["json", "multipart"] }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"

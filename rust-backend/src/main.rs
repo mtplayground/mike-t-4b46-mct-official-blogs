@@ -85,6 +85,29 @@ fn build_router(state: AppState) -> Router {
         .route("/api/admin/login", post(auth::login))
         .route("/api/admin/logout", post(auth::logout))
         .route("/api/admin/session", get(auth::verify_session))
+        .route("/api/admin/categories", get(posts::admin::list_categories))
+        .route(
+            "/api/admin/posts",
+            get(posts::admin::list_admin_posts).post(posts::admin::create_admin_post),
+        )
+        .route(
+            "/api/admin/posts/:id",
+            get(posts::admin::get_admin_post)
+                .put(posts::admin::update_admin_post)
+                .delete(posts::admin::delete_admin_post),
+        )
+        .route(
+            "/api/admin/posts/:id/publish",
+            post(posts::admin::publish_admin_post),
+        )
+        .route(
+            "/api/admin/posts/:id/unpublish",
+            post(posts::admin::unpublish_admin_post),
+        )
+        .route(
+            "/api/admin/subscribers",
+            get(subscribers::list_admin_subscribers),
+        )
         .route("/api/posts/:slug", get(posts::get_post))
         .route(
             "/api/posts/:slug/views",

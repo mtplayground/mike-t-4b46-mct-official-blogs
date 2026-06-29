@@ -1,6 +1,8 @@
-import { prisma } from "@/lib/db/prisma";
+import { getAdminCategories } from "@/lib/admin/cms-api";
 
 import { PostEditorForm } from "../_components/post-editor-form";
+
+export const dynamic = "force-dynamic";
 
 type NewPostPageProps = {
   searchParams?: Promise<{
@@ -9,18 +11,7 @@ type NewPostPageProps = {
 };
 
 export default async function NewPostPage({ searchParams }: NewPostPageProps) {
-  const [params, categories] = await Promise.all([
-    searchParams,
-    prisma.category.findMany({
-      orderBy: {
-        name: "asc",
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-    }),
-  ]);
+  const [params, categories] = await Promise.all([searchParams, getAdminCategories()]);
 
   return (
     <section className="section section-cream">

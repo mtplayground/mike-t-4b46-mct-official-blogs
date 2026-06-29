@@ -1,14 +1,15 @@
-import { Category, Post, PostStatus } from "@prisma/client";
 import Link from "next/link";
+
+import type { AdminCategory, AdminPost } from "@/lib/admin/cms-api";
 
 import { createPost, updatePost } from "../actions";
 import { PostUploadSizeWarning } from "./post-upload-size-warning";
 
 type PostEditorFormProps = {
-  categories: Pick<Category, "id" | "name">[];
+  categories: Pick<AdminCategory, "id" | "name">[];
   error?: string;
   post?: Pick<
-    Post,
+    AdminPost,
     | "authorAvatarKey"
     | "authorIntro"
     | "authorName"
@@ -106,20 +107,20 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
               <label className="flex items-center justify-center gap-2 rounded-button border border-editorial-line px-4 py-3 text-sm font-bold">
                 <input
                   className="accent-editorial-red"
-                  defaultChecked={post?.status !== PostStatus.PUBLISHED}
+                  defaultChecked={post?.status !== "PUBLISHED"}
                   name="status"
                   type="radio"
-                  value={PostStatus.DRAFT}
+                  value={"DRAFT"}
                 />
                 Draft
               </label>
               <label className="flex items-center justify-center gap-2 rounded-button border border-editorial-line px-4 py-3 text-sm font-bold">
                 <input
                   className="accent-editorial-red"
-                  defaultChecked={post?.status === PostStatus.PUBLISHED}
+                  defaultChecked={post?.status === "PUBLISHED"}
                   name="status"
                   type="radio"
-                  value={PostStatus.PUBLISHED}
+                  value={"PUBLISHED"}
                 />
                 Published
               </label>

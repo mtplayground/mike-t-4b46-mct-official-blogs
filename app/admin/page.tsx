@@ -1,9 +1,10 @@
-import { PostStatus, type Post } from "@prisma/client";
 import Link from "next/link";
 
-import { prisma } from "@/lib/db/prisma";
+import { getAdminPosts, type AdminPost } from "@/lib/admin/cms-api";
 
 import { deletePost, publishPost, unpublishPost } from "./actions";
+
+export const dynamic = "force-dynamic";
 
 const dateFormatter = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -19,22 +20,16 @@ type AdminPageProps = {
   }>;
 };
 
-type AdminPost = Post & {
-  category: {
-    name: string;
-  };
-};
-
-function formatDate(date: Date | null) {
-  return date ? dateFormatter.format(date) : "Unscheduled";
+function formatDate(date: string | null) {
+  return date ? dateFormatter.format(new Date(date)) : "Unscheduled";
 }
 
-function statusLabel(status: PostStatus) {
-  return status === PostStatus.PUBLISHED ? "Published" : "Draft";
+function statusLabel(status: AdminPost["status"]) {
+  return status === "PUBLISHED" ? "Published" : "Draft";
 }
 
-function StatusBadge({ status }: { status: PostStatus }) {
-  const isPublished = status === PostStatus.PUBLISHED;
+function StatusBadge({ status }: { status: AdminPost["status"] }) {
+  const isPublished = status === "PUBLISHED";
 
   return (
     <span
@@ -50,7 +45,7 @@ function StatusBadge({ status }: { status: PostStatus }) {
 }
 
 function PublishControls({ post }: { post: AdminPost }) {
-  if (post.status === PostStatus.PUBLISHED) {
+  if (post.status === "PUBLISHED") {
     return (
       <form action={unpublishPost}>
         <input name="postId" type="hidden" value={post.id} />
@@ -108,7 +103,7 @@ function PostRow({ post }: { post: AdminPost }) {
         <div className="flex flex-wrap items-center gap-3">
           <StatusBadge status={post.status} />
           <span className="text-xs font-bold uppercase text-editorial-red">
-            {post.category.name}
+            {post.categoryName}
           </span>
         </div>
         <div className="grid gap-2">
@@ -138,7 +133,7 @@ function PostRow({ post }: { post: AdminPost }) {
           Edit
         </Link>
         <PublishControls post={post} />
-        {post.status === PostStatus.PUBLISHED ? (
+        {post.status === "PUBLISHED" ? (
           <Link
             className="inline-flex justify-center rounded-button border border-editorial-line bg-editorial-white px-4 py-2 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
             href={`/blog/${post.slug}`}
@@ -154,17 +149,8 @@ function PostRow({ post }: { post: AdminPost }) {
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const params = await searchParams;
-  const posts = await prisma.post.findMany({
-    include: {
-      category: {
-        select: {
-          name: true,
-        },
-      },
-    },
-    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-  });
-  const publishedCount = posts.filter((post) => post.status === PostStatus.PUBLISHED).length;
+  const posts = await getAdminPosts();
+  const publishedCount = posts.filter((post) => post.status === "PUBLISHED").length;
   const draftCount = posts.length - publishedCount;
 
   return (
