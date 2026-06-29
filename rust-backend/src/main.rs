@@ -1,3 +1,4 @@
+mod auth;
 mod config;
 mod db;
 mod error;
@@ -13,7 +14,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use config::AppConfig;
+use config::{AdminCredentials, AppConfig};
 use db::DbPool;
 use error::AppError;
 use serde::Serialize;
@@ -26,6 +27,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 pub(crate) struct AppState {
     pub(crate) pool: DbPool,
     pub(crate) storage: StorageClient,
+    pub(crate) admin: AdminCredentials,
+    pub(crate) self_url: String,
 }
 
 #[derive(Serialize)]
@@ -51,7 +54,12 @@ async fn main() -> Result<(), AppError> {
     );
     let pool = db::connect(&config.database_url)?;
     let storage = StorageClient::from_config(&config.object_storage, &config.self_url).await;
-    let app = build_router(AppState { pool, storage });
+    let app = build_router(AppState {
+        pool,
+        storage,
+        admin: config.admin,
+        self_url: config.self_url,
+    });
     let listener = TcpListener::bind(listen_addr).await?;
 
     tracing::info!(%listen_addr, "Rust backend listening");
@@ -74,6 +82,9 @@ fn build_router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/api/posts", get(posts::list_posts))
         .route("/api/newsletter", post(newsletter::subscribe))
+        .route("/api/admin/login", post(auth::login))
+        .route("/api/admin/logout", post(auth::logout))
+        .route("/api/admin/session", get(auth::verify_session))
         .route("/api/posts/:slug", get(posts::get_post))
         .route(
             "/api/posts/:slug/views",
