@@ -2,11 +2,17 @@ mod config;
 mod db;
 mod error;
 mod models;
+mod newsletter;
 mod posts;
 mod storage;
+mod subscribers;
 mod views;
 
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{
+    extract::State,
+    routing::{get, post},
+    Json, Router,
+};
 use config::AppConfig;
 use db::DbPool;
 use error::AppError;
@@ -67,6 +73,7 @@ fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/api/posts", get(posts::list_posts))
+        .route("/api/newsletter", post(newsletter::subscribe))
         .route("/api/posts/:slug", get(posts::get_post))
         .route(
             "/api/posts/:slug/views",
