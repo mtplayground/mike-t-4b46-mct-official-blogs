@@ -50,12 +50,12 @@ pub async fn login(
     };
 
     if !valid_credentials {
-        return redirect_to_login(&state.self_url);
+        return redirect_to_login();
     }
 
     let session = create_admin_session(&state.admin.password, now_millis())
         .ok_or(AppError::PublicInternal("Could not create admin session."))?;
-    let location = absolute_url(&state.self_url, next_path)?;
+    let location = next_path.to_owned();
     let cookie = session_cookie(
         &session,
         ADMIN_SESSION_MAX_AGE_SECONDS,
@@ -66,7 +66,7 @@ pub async fn login(
 }
 
 pub async fn logout(State(state): State<AppState>) -> Result<Response, AppError> {
-    let location = absolute_url(&state.self_url, ADMIN_LOGIN_PATH)?;
+    let location = ADMIN_LOGIN_PATH.to_owned();
     let cookie = session_cookie("", 0, state.self_url.starts_with("https://"));
 
     redirect_with_cookie(location, cookie)
@@ -193,25 +193,11 @@ fn safe_admin_next(value: Option<&str>) -> &str {
     }
 }
 
-fn redirect_to_login(self_url: &str) -> Result<Response, AppError> {
-    let mut login_url = absolute_url(self_url, ADMIN_LOGIN_PATH)?;
+fn redirect_to_login() -> Result<Response, AppError> {
+    let mut login_url = ADMIN_LOGIN_PATH.to_owned();
     login_url.push_str("?error=invalid");
 
     redirect(login_url)
-}
-
-fn absolute_url(self_url: &str, path: &str) -> Result<String, AppError> {
-    let base = self_url
-        .parse::<axum::http::Uri>()
-        .map_err(|_| AppError::BadRequest("SELF_URL is invalid."))?;
-    let Some(scheme) = base.scheme_str() else {
-        return Err(AppError::BadRequest("SELF_URL is invalid."));
-    };
-    let Some(authority) = base.authority() else {
-        return Err(AppError::BadRequest("SELF_URL is invalid."));
-    };
-
-    Ok(format!("{scheme}://{authority}{path}"))
 }
 
 fn redirect(location: String) -> Result<Response, AppError> {

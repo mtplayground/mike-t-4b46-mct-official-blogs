@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 8080",
     "build": "npm run build:all",
-    "build:frontend": "next build",
+    "build:frontend": "next build --webpack",
     "build:backend": "PATH=/usr/local/cargo/bin:$PATH cargo build --release --manifest-path rust-backend/Cargo.toml",
     "build:all": "npm run build:frontend && npm run build:backend",
     "start": "next start -H 0.0.0.0 -p ${PORT:-8080}",
