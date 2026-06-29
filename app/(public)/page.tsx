@@ -1,10 +1,8 @@
-import { PostStatus, type Category, type Post } from "@prisma/client";
 import Link from "next/link";
 
+import { getRustPostList, type RustPost } from "@/lib/api/rust-blog";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
-import { prisma } from "@/lib/db/prisma";
 import { buildPageMetadata } from "@/lib/metadata";
-import { getPostImageUrl } from "@/lib/storage/object-storage";
 
 export const revalidate = 300;
 
@@ -22,79 +20,12 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
-type PublishedPost = Post & {
-  category: Category;
-};
-
-type HomepagePost = PublishedPost & {
-  coverImageUrl: string | null;
-  squareCoverImageUrl: string | null;
-};
-
-function publishedPostWhere() {
-  return {
-    publishedAt: {
-      not: null,
-    },
-    status: PostStatus.PUBLISHED,
-  };
-}
-
-function formatPublishedDate(post: Pick<Post, "publishedAt">) {
+function formatPublishedDate(post: Pick<RustPost, "publishedAt">) {
   return post.publishedAt ? dateFormatter.format(post.publishedAt) : "Unscheduled";
 }
 
-async function withSignedCoverImage(post: PublishedPost): Promise<HomepagePost> {
-  const [coverImageUrl, squareCoverImageUrl] = await Promise.all([
-    post.coverImageKey ? getPostImageUrl(post.coverImageKey) : Promise.resolve(null),
-    post.squareCoverImageKey ? getPostImageUrl(post.squareCoverImageKey) : Promise.resolve(null),
-  ]);
-
-  return {
-    ...post,
-    coverImageUrl,
-    squareCoverImageUrl,
-  };
-}
-
-function getHeroImageUrl(post: HomepagePost) {
+function getHeroImageUrl(post: RustPost) {
   return post.squareCoverImageUrl ?? post.coverImageUrl;
-}
-
-async function getHomepagePosts() {
-  const where = publishedPostWhere();
-  const [featuredPost, latestPost, posts] = await Promise.all([
-    prisma.post.findFirst({
-      include: {
-        category: true,
-      },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      where: {
-        ...where,
-        isFeatured: true,
-      },
-    }),
-    prisma.post.findFirst({
-      include: {
-        category: true,
-      },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      where,
-    }),
-    prisma.post.findMany({
-      include: {
-        category: true,
-      },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      where,
-    }),
-  ]);
-  const heroPost = featuredPost ?? latestPost;
-
-  return {
-    heroPost: heroPost ? await withSignedCoverImage(heroPost) : null,
-    posts: await Promise.all(posts.map(withSignedCoverImage)),
-  };
 }
 
 function PostImage({ alt, src }: { alt: string; src: string | null }) {
@@ -107,12 +38,12 @@ function PostImage({ alt, src }: { alt: string; src: string | null }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- Private object storage images are signed server-side before render.
+    // eslint-disable-next-line @next/next/no-img-element -- Private object storage images are resolved by the Rust image proxy.
     <img alt={alt} className={coverMediaImageClassName} src={src} />
   );
 }
 
-function PostMeta({ post }: { post: HomepagePost }) {
+function PostMeta({ post }: { post: RustPost }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-editorial-muted">
       <span className="font-bold uppercase text-editorial-red">{post.category.name}</span>
@@ -122,7 +53,7 @@ function PostMeta({ post }: { post: HomepagePost }) {
   );
 }
 
-function ArticleCard({ post }: { post: HomepagePost }) {
+function ArticleCard({ post }: { post: RustPost }) {
   return (
     <article className="group grid overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial transition hover:-translate-y-1 hover:shadow-lg">
       <Link className="grid h-full" href={`/blog/${post.slug}`}>
@@ -147,7 +78,7 @@ function ArticleCard({ post }: { post: HomepagePost }) {
 }
 
 export default async function HomePage() {
-  const { heroPost, posts } = await getHomepagePosts();
+  const { heroPost, posts } = await getRustPostList();
   const heroImageUrl = heroPost ? getHeroImageUrl(heroPost) : null;
 
   return (
