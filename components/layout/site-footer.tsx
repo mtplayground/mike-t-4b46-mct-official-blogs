@@ -18,7 +18,7 @@ export function SiteFooter() {
     <footer className="bg-editorial-dark-card text-editorial-white">
       <div className="page-shell grid gap-10 py-12 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.35fr]">
         <div className="stack">
-          <Link
+          <Link prefetch={false}
             aria-label="myClawTeam Blog home"
             className="flex items-center gap-3"
             href="/"
@@ -47,7 +47,7 @@ export function SiteFooter() {
           <ul className="grid gap-3 text-sm text-editorial-dark-card-muted">
             {footerLinks.map((item) => (
               <li key={item.href}>
-                <Link
+                <Link prefetch={false}
                   className="transition hover:text-editorial-white"
                   href={item.href}
                   prefetch={false}
@@ -66,7 +66,7 @@ export function SiteFooter() {
           <ul className="grid gap-3 text-sm text-editorial-dark-card-muted">
             {categoryLinks.map((category) => (
               <li key={category.href}>
-                <Link className="transition hover:text-editorial-white" href={category.href}>
+                <Link prefetch={false} className="transition hover:text-editorial-white" href={category.href}>
                   {category.label}
                 </Link>
               </li>

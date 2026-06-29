@@ -6,7 +6,7 @@ export default function AdminNotFound() {
   return (
     <StatusPanel
       actions={
-        <Link className="editorial-button" href="/admin">
+        <Link prefetch={false} className="editorial-button" href="/admin">
           Back to dashboard
         </Link>
       }

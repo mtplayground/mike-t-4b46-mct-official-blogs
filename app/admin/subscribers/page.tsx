@@ -32,7 +32,7 @@ export default async function SubscribersPage() {
               Review collected newsletter signups with each subscriber email and UTC signup date.
             </p>
           </div>
-          <Link
+          <Link prefetch={false}
             className="inline-flex w-fit justify-center rounded-button border border-editorial-line bg-editorial-white px-5 py-3 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
             href="/admin"
           >

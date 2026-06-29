@@ -27,7 +27,7 @@ export function StatusPanel({ actions, description, eyebrow, title }: StatusPane
 
 export function HomeLink() {
   return (
-    <Link className="editorial-button" href="/">
+    <Link prefetch={false} className="editorial-button" href="/">
       Go home
     </Link>
   );
@@ -35,7 +35,7 @@ export function HomeLink() {
 
 export function BlogLink() {
   return (
-    <Link
+    <Link prefetch={false}
       className="inline-flex w-fit justify-center rounded-button border border-editorial-line bg-editorial-white px-6 py-3 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
       href="/#articles"
     >

@@ -302,7 +302,7 @@ export default async function PostPage({ params }: PostPageProps) {
       <article>
         <section className="section section-cream">
           <div className="page-shell grid gap-10">
-            <Link
+            <Link prefetch={false}
               className="w-fit text-sm font-bold text-editorial-muted underline decoration-editorial-red decoration-2 underline-offset-8 transition hover:text-editorial-red"
               href="/"
             >

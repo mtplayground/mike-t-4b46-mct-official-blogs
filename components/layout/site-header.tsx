@@ -9,7 +9,7 @@ export function SiteHeader() {
   return (
     <header className="border-b border-editorial-line bg-editorial-white">
       <div className="page-shell flex flex-col gap-5 py-5 md:flex-row md:items-center md:justify-between">
-        <Link
+        <Link prefetch={false}
           aria-label="myClawTeam Blog home"
           className="flex items-center gap-3"
           href="/"
@@ -30,7 +30,7 @@ export function SiteHeader() {
           <ul className="flex flex-wrap items-center gap-2">
             {navigation.map((item) => (
               <li key={item.href}>
-                <Link
+                <Link prefetch={false}
                   className="inline-flex rounded-button px-4 py-2 text-sm font-bold text-editorial-muted transition hover:bg-editorial-cream hover:text-editorial-ink focus:outline-none focus:ring-2 focus:ring-editorial-red focus:ring-offset-2"
                   href={item.href}
                   prefetch={false}

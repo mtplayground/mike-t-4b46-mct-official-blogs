@@ -125,7 +125,7 @@ function PostRow({ post }: { post: AdminPost }) {
         </dl>
       </div>
       <div className="grid content-start gap-3">
-        <Link
+        <Link prefetch={false}
           className="inline-flex justify-center rounded-button border border-editorial-line bg-editorial-white px-4 py-2 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
           href={`/admin/posts/${post.id}/edit`}
         >
@@ -133,7 +133,7 @@ function PostRow({ post }: { post: AdminPost }) {
         </Link>
         <PublishControls post={post} />
         {post.status === "PUBLISHED" ? (
-          <Link
+          <Link prefetch={false}
             className="inline-flex justify-center rounded-button border border-editorial-line bg-editorial-white px-4 py-2 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
             href={`/blog/${post.slug}`}
           >
@@ -175,10 +175,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link className="editorial-button" href="/admin/posts/new">
+          <Link prefetch={false} className="editorial-button" href="/admin/posts/new">
             New post
           </Link>
-          <Link
+          <Link prefetch={false}
             className="inline-flex w-fit justify-center rounded-button border border-editorial-line bg-editorial-white px-6 py-3 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
             href="/admin/subscribers"
           >

@@ -56,7 +56,7 @@ function PostMeta({ post }: { post: RustPost }) {
 function ArticleCard({ post }: { post: RustPost }) {
   return (
     <article className="group grid overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial transition hover:-translate-y-1 hover:shadow-lg">
-      <Link className="grid h-full" href={`/blog/${post.slug}`}>
+      <Link prefetch={false} className="grid h-full" href={`/blog/${post.slug}`}>
         <figure className={coverMediaFrameClassName}>
           <PostImage alt="" src={post.coverImageUrl} />
         </figure>
@@ -94,11 +94,11 @@ export default async function HomePage() {
                   {heroPost.title}
                 </h1>
                 <p className="text-lead text-editorial-muted">{heroPost.excerpt}</p>
-                <Link className="editorial-button w-fit" href={`/blog/${heroPost.slug}`}>
+                <Link prefetch={false} className="editorial-button w-fit" href={`/blog/${heroPost.slug}`}>
                   Read article
                 </Link>
               </div>
-              <Link
+              <Link prefetch={false}
                 aria-label={`Read ${heroPost.title}`}
                 className="group overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial"
                 href={`/blog/${heroPost.slug}`}

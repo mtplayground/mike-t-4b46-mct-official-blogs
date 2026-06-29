@@ -274,7 +274,7 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
         <button className="editorial-button" type="submit">
           {isEditing ? "Update post" : "Create post"}
         </button>
-        <Link
+        <Link prefetch={false}
           className="inline-flex w-fit justify-center rounded-button border border-editorial-line bg-editorial-white px-6 py-3 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
           href="/admin"
         >
