@@ -32,3 +32,4 @@ idna_adapter = "=1.1.0"
 
 [dev-dependencies]
 serial_test = "3"
+tower = { version = "0.5", features = ["util"] }

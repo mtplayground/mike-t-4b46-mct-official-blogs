@@ -97,6 +97,10 @@ fn build_router(state: AppState) -> Router {
                 .delete(posts::admin::delete_admin_post),
         )
         .route(
+            "/api/admin/posts/:id/update",
+            post(posts::admin::update_admin_post),
+        )
+        .route(
             "/api/admin/posts/:id/publish",
             post(posts::admin::publish_admin_post),
         )
@@ -122,4 +126,183 @@ async fn health(State(state): State<AppState>) -> Result<Json<HealthResponse<'st
     let _pool = state.pool.clone();
 
     Ok(Json(HealthResponse { status: "ok" }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        http::{header, Request, StatusCode},
+    };
+    use sqlx::Row;
+    use tower::ServiceExt;
+
+    fn multipart_body(boundary: &str, fields: &[(&str, &str)]) -> String {
+        let mut body = String::new();
+
+        for (name, value) in fields {
+            body.push_str(&format!("--{boundary}\r\n"));
+            body.push_str(&format!(
+                "Content-Disposition: form-data; name=\"{name}\"\r\n\r\n"
+            ));
+            body.push_str(value);
+            body.push_str("\r\n");
+        }
+
+        body.push_str(&format!("--{boundary}--\r\n"));
+        body
+    }
+
+    async fn test_storage() -> StorageClient {
+        StorageClient::from_config(
+            &config::ObjectStorageConfig {
+                access_key_id: "access".to_owned(),
+                secret_access_key: "secret".to_owned(),
+                bucket: "bucket".to_owned(),
+                prefix: "tenant-prefix/".to_owned(),
+                endpoint: "https://storage.example.com".to_owned(),
+                region: "auto".to_owned(),
+                force_path_style: true,
+            },
+            "https://blog.example.com",
+        )
+        .await
+    }
+
+    async fn first_category_id(pool: &DbPool) -> Result<String, sqlx::Error> {
+        if let Some(row) = sqlx::query("SELECT id FROM categories ORDER BY created_at ASC LIMIT 1")
+            .fetch_optional(pool)
+            .await?
+        {
+            return Ok(row.get("id"));
+        }
+
+        let category_id = "route-test-category";
+        sqlx::query(
+            r#"
+            INSERT INTO categories (id, slug, name, description, created_at, updated_at)
+            VALUES ($1, 'THOUGHTS'::"CategorySlug", 'Thoughts', NULL, NOW(), NOW())
+            ON CONFLICT (slug) DO UPDATE SET updated_at = NOW()
+            "#,
+        )
+        .bind(category_id)
+        .execute(pool)
+        .await?;
+
+        let row = sqlx::query("SELECT id FROM categories WHERE slug = 'THOUGHTS'::\"CategorySlug\"")
+            .fetch_one(pool)
+            .await?;
+        Ok(row.get("id"))
+    }
+
+    #[tokio::test]
+    async fn post_admin_update_route_updates_existing_post() {
+        let Ok(database_url) = std::env::var("DATABASE_URL") else {
+            eprintln!("DATABASE_URL is not set; skipping route-backed update test");
+            return;
+        };
+        let pool = db::connect(&database_url).expect("DATABASE_URL should be valid");
+        let db_ready = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            sqlx::query("SELECT 1").execute(&pool),
+        )
+        .await;
+        if !matches!(db_ready, Ok(Ok(_))) {
+            eprintln!("DATABASE_URL is not reachable; skipping route-backed update test");
+            return;
+        }
+
+        let category_id = first_category_id(&pool)
+            .await
+            .expect("test category should be available");
+        let post_id = format!("route-test-post-{}", uuid::Uuid::new_v4());
+        let original_slug = format!("route-test-{}", uuid::Uuid::new_v4());
+
+        sqlx::query(
+            r#"
+            INSERT INTO posts (
+                id, title, slug, excerpt, body, status, category_id,
+                author_name, author_intro, created_at, updated_at
+            )
+            VALUES (
+                $1, 'Before title', $2, 'Before excerpt', 'Before body',
+                'DRAFT'::"PostStatus", $3, '', '', NOW(), NOW()
+            )
+            "#,
+        )
+        .bind(&post_id)
+        .bind(&original_slug)
+        .bind(&category_id)
+        .execute(&pool)
+        .await
+        .expect("test post should be inserted");
+
+        let state = AppState {
+            pool: pool.clone(),
+            storage: test_storage().await,
+            admin: AdminCredentials {
+                username: "admin".to_owned(),
+                password: "secret".to_owned(),
+            },
+            self_url: "https://blog.example.com".to_owned(),
+        };
+        let now_millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_millis() as i64;
+        let session = auth::create_admin_session(&state.admin.password, now_millis)
+            .expect("session should be created");
+        let boundary = "route-test-boundary";
+        let updated_title = "Updated title from POST route";
+        let body = multipart_body(
+            boundary,
+            &[
+                ("title", updated_title),
+                ("slug", &original_slug),
+                ("excerpt", "Updated excerpt"),
+                ("categoryId", &category_id),
+                ("status", "DRAFT"),
+                ("authorName", ""),
+                ("authorIntro", ""),
+                ("body", "Updated body"),
+            ],
+        );
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/admin/posts/{post_id}/update"))
+                    .header(
+                        header::CONTENT_TYPE,
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .header(
+                        header::COOKIE,
+                        format!("{}={session}", auth::ADMIN_SESSION_COOKIE),
+                    )
+                    .body(Body::from(body))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+        let row = sqlx::query("SELECT title, excerpt, body FROM posts WHERE id = $1")
+            .bind(&post_id)
+            .fetch_one(&pool)
+            .await
+            .expect("updated post should be fetched");
+        assert_eq!(row.get::<String, _>("title"), updated_title);
+        assert_eq!(row.get::<String, _>("excerpt"), "Updated excerpt");
+        assert_eq!(row.get::<String, _>("body"), "Updated body");
+
+        sqlx::query("DELETE FROM posts WHERE id = $1")
+            .bind(&post_id)
+            .execute(&pool)
+            .await
+            .expect("test post should be cleaned up");
+    }
 }
