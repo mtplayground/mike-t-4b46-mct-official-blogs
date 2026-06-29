@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import type { AdminCategory, AdminPost } from "@/lib/admin/cms-api";
 
-import { createPost, updatePost } from "../actions";
 import { PostUploadSizeWarning } from "./post-upload-size-warning";
 
 type PostEditorFormProps = {
@@ -27,14 +26,14 @@ type PostEditorFormProps = {
 };
 
 function formAction(post: PostEditorFormProps["post"]) {
-  return post ? updatePost : createPost;
+  return post ? `/api/admin/posts/${post.id}/update` : "/api/admin/posts";
 }
 
 export function PostEditorForm({ categories, error, post }: PostEditorFormProps) {
   const isEditing = Boolean(post);
 
   return (
-    <form action={formAction(post)} className="grid gap-8" encType="multipart/form-data">
+    <form action={formAction(post)} className="grid gap-8" encType="multipart/form-data" method="post">
       {post ? <input name="postId" type="hidden" value={post.id} /> : null}
 
       {error ? (

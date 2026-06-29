@@ -1,160 +1,53 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  ADMIN_SESSION_COOKIE,
-  ADMIN_SESSION_MAX_AGE_SECONDS,
-  adminCredentialsMatch,
-  createAdminSession,
-  credentialsMatch,
-  verifyAdminSession,
-} from "../lib/admin/session";
+const ADMIN_SESSION_COOKIE = "mct_admin_session";
 
-test("credentialsMatch accepts exact admin credentials", () => {
-  assert.equal(credentialsMatch("editor", "editor"), true);
+test("proxy allows admin login page without Rust verification", async () => {
+  const { proxy } = await import("../proxy");
+  const { NextRequest } = await import("next/server");
+  const request = new NextRequest("https://example.test/admin/login");
+  const response = await proxy(request);
+
+  assert.equal(response.headers.get("location"), null);
 });
 
-test("credentialsMatch rejects wrong or length-mismatched credentials", () => {
-  assert.equal(credentialsMatch("editor", "publisher"), false);
-  assert.equal(credentialsMatch("editor", "editorial"), false);
+test("proxy redirects protected admin routes when Rust verification is unavailable", async () => {
+  const { proxy } = await import("../proxy");
+  const { NextRequest } = await import("next/server");
+  const request = new NextRequest("https://example.test/admin?tab=posts", {
+    headers: { cookie: `${ADMIN_SESSION_COOKIE}=invalid` },
+  });
+  const response = await proxy(request);
+  const location = response.headers.get("location") || "";
+
+  assert.match(location, /\/admin\/login/);
+  assert.match(location, /next=%2Fadmin%3Ftab%3Dposts/);
 });
 
-test("adminCredentialsMatch trims submitted and configured password whitespace", () => {
-  assert.equal(
-    adminCredentialsMatch(
-      { username: " editor ", password: "  correct horse battery staple\n" },
-      { username: "editor", password: "correct horse battery staple  " },
-    ),
-    true,
-  );
-});
-
-test("adminCredentialsMatch rejects genuinely wrong passwords after trimming", () => {
-  assert.equal(
-    adminCredentialsMatch(
-      { username: "editor", password: "wrong horse battery staple" },
-      { username: "editor", password: "correct horse battery staple  " },
-    ),
-    false,
-  );
-});
-
-test("admin sessions verify with the same secret", async () => {
-  const now = 1_700_000_000_000;
-  const session = await createAdminSession("test-secret", now);
-  const originalDateNow = Date.now;
-
-  try {
-    Date.now = () => now;
-
-    assert.equal(await verifyAdminSession(session, "test-secret"), true);
-  } finally {
-    Date.now = originalDateNow;
-  }
-});
-
-test("admin sessions reject tampering, missing secrets, and expiration", async () => {
-  const now = 1_700_000_000_000;
-  const session = await createAdminSession("test-secret", now);
-  const tamperedSession = session.replace("v1.", "v1x.");
-  const expiredSession = await createAdminSession(
-    "test-secret",
-    now - ADMIN_SESSION_MAX_AGE_SECONDS * 1000 - 1,
-  );
-  const originalDateNow = Date.now;
-
-  try {
-    Date.now = () => now;
-
-    assert.equal(await verifyAdminSession(tamperedSession, "test-secret"), false);
-    assert.equal(await verifyAdminSession(session, undefined), false);
-    assert.equal(await verifyAdminSession(expiredSession, "test-secret"), false);
-  } finally {
-    Date.now = originalDateNow;
-  }
-});
-
-async function withAdminEnv<T>(
-  env: Record<string, string | undefined>,
-  callback: () => Promise<T> | T,
-) {
-  const previous = new Map<string, string | undefined>();
+async function withSelfUrl<T>(value: string | undefined, callback: () => Promise<T> | T) {
+  const previous = process.env.SELF_URL;
   const { resetServerEnvCacheForTests } = await import("../lib/env/server");
-
-  for (const key of Object.keys(env)) {
-    previous.set(key, process.env[key]);
-    if (env[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = env[key];
-    }
-  }
-
+  if (value === undefined) delete process.env.SELF_URL;
+  else process.env.SELF_URL = value;
   resetServerEnvCacheForTests();
-
   try {
     return await callback();
   } finally {
-    for (const [key, value] of previous.entries()) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-
+    if (previous === undefined) delete process.env.SELF_URL;
+    else process.env.SELF_URL = previous;
     resetServerEnvCacheForTests();
   }
 }
 
-test("proxy verifies sessions signed with fallback-derived admin credentials", async () => {
-  await withAdminEnv(
-    {
-      ADMIN_USERNAME: undefined,
-      ADMIN_PASSWORD: undefined,
-      JWT_SECRET: "fallback-secret-for-proxy",
-    },
-    async () => {
-      const { getAdminCredentials } = await import("../lib/env/server");
-      const { proxy } = await import("../proxy");
-      const { NextRequest } = await import("next/server");
-      const now = 1_700_000_000_000;
-      const credentials = getAdminCredentials();
-      const session = await createAdminSession(credentials.password, now);
-      const originalDateNow = Date.now;
+test("server env keeps SELF_URL validation for frontend canonical URLs", async () => {
+  await withSelfUrl("https://blog.example.com", async () => {
+    const { getSelfUrl } = await import("../lib/env/server");
+    assert.equal(getSelfUrl(), "https://blog.example.com");
+  });
 
-      try {
-        Date.now = () => now;
-
-        const request = new NextRequest("https://example.test/admin", {
-          headers: {
-            cookie: `${ADMIN_SESSION_COOKIE}=${session}`,
-          },
-        });
-        const response = await proxy(request);
-
-        assert.equal(response.headers.get("location"), null);
-      } finally {
-        Date.now = originalDateNow;
-      }
-    },
-  );
-});
-
-test("admin credential validation rejects partial explicit env configuration", async () => {
-  await withAdminEnv(
-    {
-      ADMIN_USERNAME: "admin_only",
-      ADMIN_PASSWORD: undefined,
-      JWT_SECRET: "fallback-secret-for-partial-env",
-    },
-    async () => {
-      const { getAdminCredentials } = await import("../lib/env/server");
-
-      assert.throws(
-        () => getAdminCredentials(),
-        /ADMIN_USERNAME and ADMIN_PASSWORD must be configured together\./,
-      );
-    },
-  );
+  await withSelfUrl(undefined, async () => {
+    const { getSelfUrl } = await import("../lib/env/server");
+    assert.throws(() => getSelfUrl(), /SELF_URL is required/);
+  });
 });

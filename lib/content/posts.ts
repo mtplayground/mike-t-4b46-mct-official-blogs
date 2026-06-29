@@ -1,10 +1,21 @@
-import { CategorySlug, PostStatus, type Post, type Prisma } from "@prisma/client";
+export enum PostStatus {
+  DRAFT = "DRAFT",
+  PUBLISHED = "PUBLISHED",
+}
 
-export type PostVisibilityFields = Pick<Post, "publishedAt" | "status">;
-export type PublishedPostRequirementFields = Pick<
-  Post,
-  "authorAvatarKey" | "authorIntro" | "authorName" | "coverImageKey"
->;
+export enum CategorySlug {
+  THOUGHTS = "THOUGHTS",
+  PRODUCT_PROGRESS = "PRODUCT_PROGRESS",
+  ANNOUNCEMENTS = "ANNOUNCEMENTS",
+}
+
+export type PostVisibilityFields = { publishedAt: Date | string | null; status: PostStatus };
+export type PublishedPostRequirementFields = {
+  authorAvatarKey: string | null;
+  authorIntro: string;
+  authorName: string;
+  coverImageKey: string | null;
+};
 
 export function isPublishedPostVisible(post: PostVisibilityFields) {
   return post.status === PostStatus.PUBLISHED && post.publishedAt !== null;
@@ -16,7 +27,7 @@ export function hasPublishedPostRequiredFields(post: PublishedPostRequirementFie
   );
 }
 
-export function publishedPostWhere(activeCategory?: CategorySlug): Prisma.PostWhereInput {
+export function publishedPostWhere(activeCategory?: CategorySlug) {
   return {
     publishedAt: {
       not: null,
