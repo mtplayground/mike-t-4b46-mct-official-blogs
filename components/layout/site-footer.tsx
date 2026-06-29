@@ -50,7 +50,6 @@ export function SiteFooter() {
                 <Link prefetch={false}
                   className="transition hover:text-editorial-white"
                   href={item.href}
-                  prefetch={false}
                 >
                   {item.label}
                 </Link>

@@ -33,7 +33,6 @@ export function SiteHeader() {
                 <Link prefetch={false}
                   className="inline-flex rounded-button px-4 py-2 text-sm font-bold text-editorial-muted transition hover:bg-editorial-cream hover:text-editorial-ink focus:outline-none focus:ring-2 focus:ring-editorial-red focus:ring-offset-2"
                   href={item.href}
-                  prefetch={false}
                 >
                   {item.label}
                 </Link>
