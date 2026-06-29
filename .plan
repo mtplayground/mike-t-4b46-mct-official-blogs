@@ -1,17 +1,21 @@
-Architecture plan for Issue #154: Scope the admin session cookie to Path=/
+Architecture plan for Issue #156: Configure Axum body limit for admin multipart uploads and improve errors
 
-Module structure and files:
-- Rust backend authentication is centralized in `rust-backend/src/auth/mod.rs`.
-- Admin session cookie creation/clearing flows through the existing `session_cookie(...)` helper used by both login and logout handlers.
-- Next.js admin pages and forms submit admin mutations to `/api/admin/*`, while the proxy middleware checks `/api/admin/session`; no frontend type or route restructuring is needed.
-- Existing tests for admin session behavior live in Rust module tests and TypeScript tests under `tests/admin-session.test.ts`; update/add focused coverage around cookie Path semantics if needed.
+Current architecture
+- Frontend: Next.js App Router under app/ with admin post editor form in app/admin/posts/_components/post-editor-form.tsx. The form submits multipart/form-data directly to /api/admin/posts and /api/admin/posts/:id/update.
+- Backend: Rust Axum API under rust-backend/src. rust-backend/src/main.rs builds the router and registers public/admin routes. rust-backend/src/posts/admin.rs parses multipart admin post forms, validates individual image sizes and types, uploads images through rust-backend/src/storage/mod.rs, and redirects back to the admin UI.
+- Persistence/storage: PostgreSQL via SQLx and S3-compatible private object storage with relative keys plus OBJECT_STORAGE_PREFIX in the storage wrapper.
 
-Dependencies between issues:
-- Only one issue is in scope, so there are no cross-issue dependencies.
-- The fix should remain compatible with existing admin credential/session derivation and logout behavior.
+Implementation plan
+- Apply the global Axum request body limit in rust-backend/src/main.rs by importing/using axum::extract::DefaultBodyLimit and layering DefaultBodyLimit::max(50 * 1024 * 1024) on the router. This aligns backend acceptance with the existing frontend combined-upload warning ceiling.
+- Improve multipart rejection observability/user-facing errors near the admin multipart parsing boundary in rust-backend/src/posts/admin.rs. Preserve existing per-file MAX_IMAGE_BYTES validation, but distinguish body-limit/multipart extraction failures from generic malformed forms where possible so oversize combined submissions return a helpful 400 message instead of only "Invalid multipart form."
+- Keep shared limits consistent: the frontend warning currently documents 50 MB combined upload limit; backend route-level limit should use the same numeric value. The per-image 10 MB limit remains in posts/admin.rs.
 
-Key design decisions:
-- Change the session cookie `Path` attribute from `/admin` to `/` at the shared cookie helper level so every Set-Cookie path, including login and logout/clear-cookie responses, stays consistent.
-- Preserve all existing security attributes: HttpOnly, SameSite=Lax, Max-Age, and Secure when `SELF_URL` is HTTPS.
-- Do not introduce a new auth mechanism or client-side token storage; the existing signed HTTP-only cookie remains the source of truth.
-- Validate by running the existing auth/session tests and, if practical, a targeted backend test asserting that login and logout cookies include `Path=/`.
+Dependencies and sequencing
+- Single issue only; no cross-issue dependency.
+- Backend limit should be added before testing multipart behavior.
+- Tests should cover router/body-limit configuration or error mapping where practical, plus existing npm/Rust tests.
+
+Validation
+- Run rust-backend unit tests with cargo test --manifest-path rust-backend/Cargo.toml.
+- Run npm test for TypeScript helpers if frontend strings or shared validation are touched.
+- Run npm run build if changes affect routing or backend startup.
