@@ -1,21 +1,40 @@
-Architecture plan for Issue #156: Configure Axum body limit for admin multipart uploads and improve errors
+Architecture plan for Issue #158: Revalidate public pages immediately after admin post mutations
 
 Current architecture
-- Frontend: Next.js App Router under app/ with admin post editor form in app/admin/posts/_components/post-editor-form.tsx. The form submits multipart/form-data directly to /api/admin/posts and /api/admin/posts/:id/update.
-- Backend: Rust Axum API under rust-backend/src. rust-backend/src/main.rs builds the router and registers public/admin routes. rust-backend/src/posts/admin.rs parses multipart admin post forms, validates individual image sizes and types, uploads images through rust-backend/src/storage/mod.rs, and redirects back to the admin UI.
-- Persistence/storage: PostgreSQL via SQLx and S3-compatible private object storage with relative keys plus OBJECT_STORAGE_PREFIX in the storage wrapper.
+- Frontend: Next.js App Router under app/, with public pages in app/(public) and admin pages in app/admin.
+- Backend: Rust Axum API under rust-backend/, with public post APIs in rust-backend/src/posts/mod.rs and admin mutations in rust-backend/src/posts/admin.rs.
+- Frontend data access: Next server components read public/admin data through lib/api/rust-blog.ts and lib/admin/cms-api.ts.
+- Deployment topology: reverse proxy routes /api/* to the Rust backend and all other requests to Next.js. The requested revalidation endpoint is the intentional exception: a Next route handler should live under app/api/revalidate/route.ts and must remain reachable by the Rust backend. If reverse proxy precedence would send all /api/* traffic to Rust, either route this specific path to Next or use an internal Next origin for the Rust callback.
 
-Implementation plan
-- Apply the global Axum request body limit in rust-backend/src/main.rs by importing/using axum::extract::DefaultBodyLimit and layering DefaultBodyLimit::max(50 * 1024 * 1024) on the router. This aligns backend acceptance with the existing frontend combined-upload warning ceiling.
-- Improve multipart rejection observability/user-facing errors near the admin multipart parsing boundary in rust-backend/src/posts/admin.rs. Preserve existing per-file MAX_IMAGE_BYTES validation, but distinguish body-limit/multipart extraction failures from generic malformed forms where possible so oversize combined submissions return a helpful 400 message instead of only "Invalid multipart form."
-- Keep shared limits consistent: the frontend warning currently documents 50 MB combined upload limit; backend route-level limit should use the same numeric value. The per-image 10 MB limit remains in posts/admin.rs.
+Planned module/file organization
+- Add app/api/revalidate/route.ts:
+  - Accept POST JSON containing at least slug and optionally category/listing hints.
+  - Guard with a shared secret from env, e.g. REVALIDATE_SECRET, supplied via Authorization: Bearer <secret> or a secret header.
+  - Call revalidatePath("/") for the home/listing page.
+  - Call revalidatePath(`/blog/${slug}`) for concrete article paths when slug is present.
+  - Call revalidatePath for category/listing routes currently present under app/(public)/blog/category/[category] and paginated list routes as needed.
+  - Return small JSON status and avoid leaking the secret.
+- Add/extend Rust config in rust-backend/src/config.rs:
+  - Read optional/required revalidation settings such as NEXT_REVALIDATE_URL or SELF_URL-derived endpoint plus REVALIDATE_SECRET.
+  - Keep startup validation clear; if the feature is enabled, require the secret and URL.
+- Add Rust revalidation helper module, e.g. rust-backend/src/revalidate.rs:
+  - Small async function to POST to the Next route after mutations.
+  - Include slug/category/status context where available.
+  - Log failures but do not fail the admin mutation after the database/object-storage work has succeeded.
+- Update rust-backend/src/posts/admin.rs:
+  - After successful create/update/publish/unpublish/delete, trigger the helper with the affected slug and relevant old slug when slug changes or post is deleted.
+  - Revalidate list/category pages for every successful mutation because publication state, featured status, category, and ordering can affect public listings.
 
 Dependencies and sequencing
-- Single issue only; no cross-issue dependency.
-- Backend limit should be added before testing multipart behavior.
-- Tests should cover router/body-limit configuration or error mapping where practical, plus existing npm/Rust tests.
+1. Define the Next revalidation API contract and secret format first.
+2. Add Rust config/state plumbing for the endpoint/secret.
+3. Add the Rust helper and call it from all successful admin mutation paths.
+4. Add tests for the route guard/path selection and Rust mutation callback behavior where practical.
+5. Update deployment env documentation (.env.example/README) with REVALIDATE_SECRET and any internal Next callback URL if required.
 
-Validation
-- Run rust-backend unit tests with cargo test --manifest-path rust-backend/Cargo.toml.
-- Run npm test for TypeScript helpers if frontend strings or shared validation are touched.
-- Run npm run build if changes affect routing or backend startup.
+Key design decisions
+- Revalidation is best-effort after a successful mutation: user-facing admin saves should not be rolled back if cache invalidation fails; failures should be logged for operations visibility.
+- Use concrete paths such as /blog/<slug> in addition to broad listing paths to avoid relying solely on dynamic pattern invalidation.
+- Revalidate both old and new article paths when slugs change, preventing stale old-slug pages.
+- Keep the secret independent from admin credentials/JWT secrets so it can be rotated separately.
+- Preserve the existing two-process architecture: Next owns cache invalidation; Rust owns persistence and triggers invalidation via HTTP.
