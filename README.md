@@ -26,17 +26,17 @@ npm run env:check
 ## Scripts
 
 - `npm run dev` starts the local Next.js server.
-- `npm run build` creates a production build.
-- `npm run start` serves the production build on `${PORT:-8080}`.
+- `npm run build` creates both production artifacts: the Next.js frontend and the Rust backend release binary.
+- `npm run build:frontend` creates only the Next.js production build.
+- `npm run build:backend` compiles the Rust backend release binary.
+- `npm run start` serves the production Next.js build on `${PORT:-8080}`.
 - `npm run lint` runs ESLint.
-- `npm run test` runs unit tests for auth, content, and newsletter logic.
+- `npm run test` runs TypeScript unit tests for content and frontend helpers.
+- `npm run backend:test` runs the Rust backend unit test suite.
+- `npm run test:all` runs both TypeScript and Rust unit tests.
 - `npm run e2e` runs the Playwright publish-to-public-view browser flow.
 - `npm run env:check` validates required runtime environment variables.
 - `npm run format` checks formatting with Prettier.
-- `npm run db:generate` generates the Prisma client.
-- `npm run db:migrate` creates and applies local Prisma migrations.
-- `npm run db:migrate:deploy` applies committed migrations in deployed environments.
-- `npm run db:seed` runs the Prisma seed workflow.
 
 ## Runtime States
 
@@ -54,37 +54,45 @@ The public route group uses shared header and footer components from `components
 
 ## Database
 
-Prisma is configured for PostgreSQL through `DATABASE_URL`. The CLI workflow is defined in
-`prisma.config.ts`, and the app creates a shared Prisma Client from `lib/db/prisma.ts`. Export the
-provided connection string before running database commands.
+The Rust backend uses SQLx with PostgreSQL through `DATABASE_URL`. Export the provided
+connection string before running backend commands that touch persistent state.
 
 ```bash
 export DATABASE_URL=$(cat /workspace/.database_url)
-npm run db:generate
-npm run db:migrate:deploy
-npm run db:seed
+npm run backend:test
 ```
+
+Schema migrations remain in `prisma/migrations` as the committed migration source for the
+existing PostgreSQL schema, but runtime app code no longer uses Prisma or the Prisma client.
 
 ## Object Storage
 
-Image upload helpers use the pre-provisioned S3-compatible object storage bucket through the
-`OBJECT_STORAGE_*` environment variables. Uploaded post images are stored under the required tenant
-prefix plus `post-images/<year>/<month>/...`; database records should keep the returned relative
-object key and call the signed URL helper when rendering private bucket assets.
+The Rust backend uses the pre-provisioned S3-compatible object storage bucket through the
+`OBJECT_STORAGE_*` environment variables. Uploaded post images are stored under the required
+tenant prefix plus `post-images/<year>/<month>/...`; database records keep the returned relative
+object key. Every S3 put/get/delete operation prepends `OBJECT_STORAGE_PREFIX`, and public image
+reads go through `/api/image/*key` so the backend can issue short-lived private-bucket signed URLs.
 
 ## Environment
 
-Required server env vars are documented in `.env.example` and validated by `lib/env/server.ts`:
-`SELF_URL`, `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and the
-`OBJECT_STORAGE_*` settings used by the storage client.
+Required runtime env vars are documented in `.env.example` and validated by
+`scripts/check-env.ts` for deployment-time configuration. The Rust backend also validates
+`SELF_URL`, `DATABASE_URL`, admin credentials (or `JWT_SECRET` fallback), and all
+`OBJECT_STORAGE_*` settings at startup.
+
+Use `RUST_API_BASE_URL` for Next.js server-side calls when the Rust backend is not reachable at
+the same public origin, for example `http://127.0.0.1:8081` behind a local process manager.
 
 ## Bare Self-Hosted Deployment
 
-This app can run as a plain Node.js process behind any reverse proxy or process manager.
+This app runs as two processes behind a reverse proxy or process manager: the Next.js frontend and
+the Rust Axum API backend. Route `/api/*` traffic to the Rust backend and all other traffic to
+Next.js.
 
 Prerequisites:
 
 - Node.js `>=20.9.0`
+- Rust toolchain available on `PATH`
 - PostgreSQL reachable through `DATABASE_URL`
 - An S3-compatible private bucket with the `OBJECT_STORAGE_*` variables from `.env.example`
 - A public canonical URL in `SELF_URL`
@@ -93,16 +101,20 @@ Deployment steps:
 
 ```bash
 npm ci
-npm run db:migrate:deploy
 npm run env:check
 npm run build
-PORT=8080 npm run start
+
+# Terminal/process 1: Rust API backend
+PORT=8081 ./rust-backend/target/release/mct-official-blogs-backend
+
+# Terminal/process 2: Next.js frontend
+RUST_API_BASE_URL=http://127.0.0.1:8081 PORT=8080 npm run start
 ```
 
-The production server binds `0.0.0.0` and uses `${PORT:-8080}`. Put a TLS-terminating reverse
-proxy in front of it, forward the original `Host` and `X-Forwarded-Proto` headers, and point
-`SELF_URL` at the externally reachable origin. Run `npm run db:seed` once if the database does not
-already contain the starter categories and sample posts.
+The Next.js server binds `0.0.0.0` and uses `${PORT:-8080}`. The Rust backend also binds
+`0.0.0.0:${PORT:-8080}`, so set a distinct port when both processes run on one host. Put a
+TLS-terminating reverse proxy in front of both processes, preserve the original public host/proto
+headers, route `/api/*` to Rust, and point `SELF_URL` at the externally reachable origin.
 
-For uploads, keep storing only relative object keys in PostgreSQL. The storage helper prepends
-`OBJECT_STORAGE_PREFIX` for every S3 operation and signs private read URLs at render time.
+For uploads, keep storing only relative object keys in PostgreSQL. The Rust storage layer prepends
+`OBJECT_STORAGE_PREFIX` for every S3 operation and signs private read URLs through the image proxy.

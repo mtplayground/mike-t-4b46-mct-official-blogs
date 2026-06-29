@@ -193,3 +193,15 @@ impl PostRow {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_post_select_only_returns_published_visible_posts() {
+        assert!(PUBLISHED_POST_SELECT.contains("status = 'PUBLISHED'"));
+        assert!(PUBLISHED_POST_SELECT.contains("published_at IS NOT NULL"));
+        assert!(PUBLISHED_POST_SELECT.contains("INNER JOIN categories"));
+    }
+}

@@ -1,9 +1,11 @@
 use axum::{
     extract::{Multipart, Path, State},
-    http::HeaderMap,
+    http::{header, HeaderMap, HeaderValue, StatusCode},
+    response::{IntoResponse, Response},
     Json,
 };
 use chrono::{Datelike, NaiveDateTime, Utc};
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use serde::Serialize;
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -127,7 +129,7 @@ pub async fn create_admin_post(
     State(state): State<AppState>,
     headers: HeaderMap,
     multipart: Multipart,
-) -> Result<Json<MutationResponse>, AppError> {
+) -> Result<Response, AppError> {
     auth::ensure_admin_headers(&state, &headers)?;
     let mut form = parse_multipart(multipart).await?;
     validate_form(&mut form, false, None)?;
@@ -137,7 +139,8 @@ pub async fn create_admin_post(
     if result.is_err() {
         cleanup_uploaded(&state, &uploaded_keys).await;
     }
-    result
+    let Json(payload) = result?;
+    redirect_to_admin_notice(&payload.notice)
 }
 
 pub async fn update_admin_post(
@@ -145,7 +148,7 @@ pub async fn update_admin_post(
     headers: HeaderMap,
     Path(id): Path<String>,
     multipart: Multipart,
-) -> Result<Json<MutationResponse>, AppError> {
+) -> Result<Response, AppError> {
     auth::ensure_admin_headers(&state, &headers)?;
     let existing = fetch_admin_post(&state, &id)
         .await?
@@ -159,14 +162,15 @@ pub async fn update_admin_post(
     if result.is_err() {
         cleanup_uploaded(&state, &uploaded_keys).await;
     }
-    result
+    let Json(payload) = result?;
+    redirect_to_admin_notice(&payload.notice)
 }
 
 pub async fn publish_admin_post(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<String>,
-) -> Result<Json<MutationResponse>, AppError> {
+) -> Result<Response, AppError> {
     auth::ensure_admin_headers(&state, &headers)?;
     let existing = fetch_admin_post(&state, &id)
         .await?
@@ -179,18 +183,15 @@ pub async fn publish_admin_post(
     .bind(&id)
     .execute(&state.pool)
     .await?;
-    let post = fetch_admin_post(&state, &id).await?;
-    Ok(Json(MutationResponse {
-        notice: format!("\"{}\" is now published.", existing.title),
-        post,
-    }))
+    let notice = format!("\"{}\" is now published.", existing.title);
+    redirect_to_admin_notice(&notice)
 }
 
 pub async fn unpublish_admin_post(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<String>,
-) -> Result<Json<MutationResponse>, AppError> {
+) -> Result<Response, AppError> {
     auth::ensure_admin_headers(&state, &headers)?;
     let existing = fetch_admin_post(&state, &id)
         .await?
@@ -202,18 +203,15 @@ pub async fn unpublish_admin_post(
     .bind(&id)
     .execute(&state.pool)
     .await?;
-    let post = fetch_admin_post(&state, &id).await?;
-    Ok(Json(MutationResponse {
-        notice: format!("\"{}\" is now a draft.", existing.title),
-        post,
-    }))
+    let notice = format!("\"{}\" is now a draft.", existing.title);
+    redirect_to_admin_notice(&notice)
 }
 
 pub async fn delete_admin_post(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<String>,
-) -> Result<Json<MutationResponse>, AppError> {
+) -> Result<Response, AppError> {
     auth::ensure_admin_headers(&state, &headers)?;
     let existing = fetch_admin_post(&state, &id)
         .await?
@@ -237,10 +235,19 @@ pub async fn delete_admin_post(
         }
     }
 
-    Ok(Json(MutationResponse {
-        notice: format!("\"{}\" was deleted.", existing.title),
-        post: None,
-    }))
+    let notice = format!("\"{}\" was deleted.", existing.title);
+    redirect_to_admin_notice(&notice)
+}
+
+fn redirect_to_admin_notice(notice: &str) -> Result<Response, AppError> {
+    let encoded = utf8_percent_encode(notice, NON_ALPHANUMERIC).to_string();
+    redirect(format!("/admin?notice={encoded}"))
+}
+
+fn redirect(location: String) -> Result<Response, AppError> {
+    let location = HeaderValue::from_str(&location)
+        .map_err(|_| AppError::BadRequest("Redirect location is invalid."))?;
+    Ok((StatusCode::SEE_OTHER, [(header::LOCATION, location)]).into_response())
 }
 
 async fn create_post_inner(
@@ -734,6 +741,32 @@ const ADMIN_POST_SELECT_ONE: &str = r#"
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn publishable_post() -> AdminPost {
+        AdminPost {
+            id: "post-1".to_owned(),
+            title: "Ready".to_owned(),
+            slug: "ready".to_owned(),
+            excerpt: "Excerpt".to_owned(),
+            body: "Body".to_owned(),
+            cover_image_key: Some("post-images/2026/06/cover.png".to_owned()),
+            square_cover_image_key: Some("post-images/2026/06/square.png".to_owned()),
+            is_featured: false,
+            views: 0,
+            author_name: "Author".to_owned(),
+            author_intro: "Intro".to_owned(),
+            author_avatar_key: Some("post-images/2026/06/avatar.png".to_owned()),
+            status: PostStatus::Draft,
+            published_at: None,
+            category_id: "category-1".to_owned(),
+            created_at: NaiveDateTime::parse_from_str("2023-11-14 22:13:20", "%Y-%m-%d %H:%M:%S")
+                .unwrap(),
+            updated_at: NaiveDateTime::parse_from_str("2023-11-14 22:13:20", "%Y-%m-%d %H:%M:%S")
+                .unwrap(),
+            category_name: "Thoughts".to_owned(),
+        }
+    }
+
     #[test]
     fn slugify_matches_admin_rules() {
         assert_eq!(slugify("Hello, Rust CMS!"), "hello-rust-cms");
@@ -742,5 +775,76 @@ mod tests {
     fn supported_image_types_map_to_expected_extensions() {
         assert_eq!(extension_for_content_type("image/webp"), Some("webp"));
         assert_eq!(extension_for_content_type("text/plain"), None);
+    }
+
+    #[test]
+    fn publishable_validation_accepts_complete_posts() {
+        let post = publishable_post();
+        assert!(validate_publishable(&post).is_ok());
+    }
+
+    #[test]
+    fn publishable_validation_requires_all_public_fields() {
+        let mut post = publishable_post();
+        post.cover_image_key = None;
+        assert!(
+            matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Cover image"))
+        );
+
+        let mut post = publishable_post();
+        post.square_cover_image_key = None;
+        assert!(
+            matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Square cover"))
+        );
+
+        let mut post = publishable_post();
+        post.author_name.clear();
+        assert!(
+            matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Author name"))
+        );
+
+        let mut post = publishable_post();
+        post.author_intro.clear();
+        assert!(
+            matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Author intro"))
+        );
+
+        let mut post = publishable_post();
+        post.author_avatar_key = None;
+        assert!(
+            matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Author avatar"))
+        );
+    }
+
+    #[test]
+    fn admin_form_can_publish_when_uploads_supply_required_images() {
+        let mut form = PostForm {
+            title: "Ready".to_owned(),
+            slug: "ready".to_owned(),
+            excerpt: "Excerpt".to_owned(),
+            body: "Body".to_owned(),
+            category_id: "category-1".to_owned(),
+            author_name: "Author".to_owned(),
+            author_intro: "Intro".to_owned(),
+            status: PostStatus::Published,
+            cover_image: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            square_cover_image: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            author_avatar: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            ..PostForm::default()
+        };
+
+        assert!(validate_form(&mut form, false, None).is_ok());
     }
 }
