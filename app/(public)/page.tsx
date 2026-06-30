@@ -4,7 +4,7 @@ import { getRustPostList, type RustPost } from "@/lib/api/rust-blog";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
 import { buildPageMetadata } from "@/lib/metadata";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export const metadata = buildPageMetadata({
   title: "Official myClawTeam updates and practical AI engineering notes",
