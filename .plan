@@ -1,40 +1,18 @@
-Architecture plan for Issue #158: Revalidate public pages immediately after admin post mutations
+Architecture plan for Issue #160: Make public blog pages render fresh data instead of stale ISR
 
-Current architecture
-- Frontend: Next.js App Router under app/, with public pages in app/(public) and admin pages in app/admin.
-- Backend: Rust Axum API under rust-backend/, with public post APIs in rust-backend/src/posts/mod.rs and admin mutations in rust-backend/src/posts/admin.rs.
-- Frontend data access: Next server components read public/admin data through lib/api/rust-blog.ts and lib/admin/cms-api.ts.
-- Deployment topology: reverse proxy routes /api/* to the Rust backend and all other requests to Next.js. The requested revalidation endpoint is the intentional exception: a Next route handler should live under app/api/revalidate/route.ts and must remain reachable by the Rust backend. If reverse proxy precedence would send all /api/* traffic to Rust, either route this specific path to Next or use an internal Next origin for the Rust callback.
+Current architecture:
+- Next.js App Router frontend under app/ renders public blog pages and admin UI.
+- Public pages fetch content through lib/api/rust-blog.ts, which calls the Rust Axum API.
+- Rust backend owns PostgreSQL queries, object-storage URL generation, admin mutations, newsletter, and view APIs.
+- Public blog data currently uses ISR-style caching in two places: page-level revalidate exports and fetch next.revalidate settings.
 
-Planned module/file organization
-- Add app/api/revalidate/route.ts:
-  - Accept POST JSON containing at least slug and optionally category/listing hints.
-  - Guard with a shared secret from env, e.g. REVALIDATE_SECRET, supplied via Authorization: Bearer <secret> or a secret header.
-  - Call revalidatePath("/") for the home/listing page.
-  - Call revalidatePath(`/blog/${slug}`) for concrete article paths when slug is present.
-  - Call revalidatePath for category/listing routes currently present under app/(public)/blog/category/[category] and paginated list routes as needed.
-  - Return small JSON status and avoid leaking the secret.
-- Add/extend Rust config in rust-backend/src/config.rs:
-  - Read optional/required revalidation settings such as NEXT_REVALIDATE_URL or SELF_URL-derived endpoint plus REVALIDATE_SECRET.
-  - Keep startup validation clear; if the feature is enabled, require the secret and URL.
-- Add Rust revalidation helper module, e.g. rust-backend/src/revalidate.rs:
-  - Small async function to POST to the Next route after mutations.
-  - Include slug/category/status context where available.
-  - Log failures but do not fail the admin mutation after the database/object-storage work has succeeded.
-- Update rust-backend/src/posts/admin.rs:
-  - After successful create/update/publish/unpublish/delete, trigger the helper with the affected slug and relevant old slug when slug changes or post is deleted.
-  - Revalidate list/category pages for every successful mutation because publication state, featured status, category, and ordering can affect public listings.
+Implementation plan:
+- app/(public)/page.tsx: replace the homepage `export const revalidate = 300` with `export const dynamic = "force-dynamic"` so the public homepage is rendered on every request.
+- app/(public)/blog/[slug]/page.tsx: replace article page `export const revalidate = 300` with `export const dynamic = "force-dynamic"` so article detail requests always hit fresh server data.
+- lib/api/rust-blog.ts: remove the `next: { revalidate: RUST_API_REVALIDATE_SECONDS }` fetch option and use `cache: "no-store"` for Rust API requests. Keep the typed API normalization and exported public functions unchanged.
+- Consider whether the now-unused `RUST_API_REVALIDATE_SECONDS` constant should be removed or retained only if referenced elsewhere; prefer removing it if unused to satisfy lint.
 
-Dependencies and sequencing
-1. Define the Next revalidation API contract and secret format first.
-2. Add Rust config/state plumbing for the endpoint/secret.
-3. Add the Rust helper and call it from all successful admin mutation paths.
-4. Add tests for the route guard/path selection and Rust mutation callback behavior where practical.
-5. Update deployment env documentation (.env.example/README) with REVALIDATE_SECRET and any internal Next callback URL if required.
-
-Key design decisions
-- Revalidation is best-effort after a successful mutation: user-facing admin saves should not be rolled back if cache invalidation fails; failures should be logged for operations visibility.
-- Use concrete paths such as /blog/<slug> in addition to broad listing paths to avoid relying solely on dynamic pattern invalidation.
-- Revalidate both old and new article paths when slugs change, preventing stale old-slug pages.
-- Keep the secret independent from admin credentials/JWT secrets so it can be rotated separately.
-- Preserve the existing two-process architecture: Next owns cache invalidation; Rust owns persistence and triggers invalidation via HTTP.
+Dependencies and design decisions:
+- No database schema, Rust backend route, admin flow, or object-storage changes are needed.
+- The change intentionally bypasses Next ISR for public reads, but existing revalidation endpoint can remain for admin mutation compatibility unless later issues remove it.
+- Tests should focus on source-level expectations and build/lint compatibility: ensure public pages declare force-dynamic and Rust API fetches are no-store.

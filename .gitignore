@@ -10,16 +10,3 @@ node_modules/
 .pipeline-state.json
 .gitkeep
 .progress
-.next/
-dist/
-build/
-out/
-.turbo/
-.env.production
-.authemail_decision
-verify-screenshot.png
-ui-verify.js
-login-debug.js
-fetch-debug.js
-
-.deploy_url
