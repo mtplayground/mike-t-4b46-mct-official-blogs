@@ -34,7 +34,19 @@ struct ErrorBody<'a> {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        tracing::error!(error = ?self, "request failed");
+        let is_client_error = matches!(
+            &self,
+            AppError::BadRequest(_)
+                | AppError::PayloadTooLarge(_)
+                | AppError::NotFound(_)
+                | AppError::Unauthorized(_)
+        );
+
+        if is_client_error {
+            tracing::warn!(error = ?self, "request rejected");
+        } else {
+            tracing::error!(error = ?self, "request failed");
+        }
 
         let (status, message) = match self {
             AppError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
