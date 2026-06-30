@@ -6,10 +6,10 @@ import remarkGfm from "remark-gfm";
 
 import { ArticleEngagement } from "@/components/blog/article-engagement";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
-import { getRustPost, getRustPostList, type RustPost } from "@/lib/api/rust-blog";
+import { getRustPost, type RustPost } from "@/lib/api/rust-blog";
 import { absoluteSiteUrl, buildPageMetadata, siteName } from "@/lib/metadata";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 const dateFormatter = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -247,14 +247,6 @@ function buildArticleJsonLd({
       url: absoluteSiteUrl("/blog"),
     },
   };
-}
-
-export async function generateStaticParams() {
-  const { posts } = await getRustPostList();
-
-  return posts.map((post) => ({
-    slug: post.slug,
-  }));
 }
 
 export async function generateMetadata({ params }: PostPageProps) {

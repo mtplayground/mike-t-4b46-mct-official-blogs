@@ -1,7 +1,5 @@
 import { getSelfUrl } from "@/lib/env/server";
 
-export const RUST_API_REVALIDATE_SECONDS = 300;
-
 type ApiCategory = {
   id: string;
   slug: string;
@@ -81,9 +79,7 @@ async function fetchRustApi<T>(path: string): Promise<T | null> {
       headers: {
         Accept: "application/json",
       },
-      next: {
-        revalidate: RUST_API_REVALIDATE_SECONDS,
-      },
+      cache: "no-store",
     });
   } catch (error) {
     console.error(`Rust API request failed before response: ${path}`, error);
