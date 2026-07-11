@@ -46,6 +46,10 @@ pub struct AdminPost {
     author_name: String,
     author_intro: String,
     author_avatar_key: Option<String>,
+    company_name: String,
+    company_intro: String,
+    company_logo_key: Option<String>,
+    company_website_url: String,
     status: PostStatus,
     published_at: Option<NaiveDateTime>,
     category_id: String,
@@ -61,7 +65,6 @@ pub struct MutationResponse {
     post: Option<AdminPost>,
 }
 
-#[derive(Default)]
 struct PostForm {
     post_id: Option<String>,
     title: String,
@@ -71,15 +74,49 @@ struct PostForm {
     category_id: String,
     author_name: String,
     author_intro: String,
+    company_name: String,
+    company_intro: String,
+    company_website_url: String,
     is_featured: bool,
     status: PostStatus,
     remove_cover: bool,
     remove_square_cover: bool,
     remove_author_avatar: bool,
+    remove_company_logo: bool,
     cover_image: Option<ImageUpload>,
     square_cover_image: Option<ImageUpload>,
     author_avatar: Option<ImageUpload>,
+    company_logo: Option<ImageUpload>,
     inline_image: Option<ImageUpload>,
+}
+
+impl Default for PostForm {
+    fn default() -> Self {
+        Self {
+            post_id: None,
+            title: String::new(),
+            slug: String::new(),
+            excerpt: String::new(),
+            body: String::new(),
+            category_id: String::new(),
+            author_name: String::new(),
+            author_intro: String::new(),
+            company_name: "myClawTeam".to_owned(),
+            company_intro: String::new(),
+            company_website_url: "https://myclawteam.ai".to_owned(),
+            is_featured: false,
+            status: PostStatus::Draft,
+            remove_cover: false,
+            remove_square_cover: false,
+            remove_author_avatar: false,
+            remove_company_logo: false,
+            cover_image: None,
+            square_cover_image: None,
+            author_avatar: None,
+            company_logo: None,
+            inline_image: None,
+        }
+    }
 }
 
 struct ImageUpload {
@@ -246,6 +283,7 @@ pub async fn delete_admin_post(
         existing.cover_image_key.as_deref(),
         existing.square_cover_image_key.as_deref(),
         existing.author_avatar_key.as_deref(),
+        existing.company_logo_key.as_deref(),
     ]
     .into_iter()
     .flatten()
@@ -294,6 +332,7 @@ async fn create_post_inner(
         upload_optional(state, form.square_cover_image.take(), uploaded_keys).await?;
     let author_avatar_key =
         upload_optional(state, form.author_avatar.take(), uploaded_keys).await?;
+    let company_logo_key = upload_optional(state, form.company_logo.take(), uploaded_keys).await?;
     if let Some(inline_image) = form.inline_image.take() {
         let uploaded = upload_image(state, inline_image).await?;
         form.body = append_inline_image(&form.body, &uploaded.0, uploaded.1.as_deref());
@@ -308,8 +347,8 @@ async fn create_post_inner(
         "NULL"
     };
     let query = format!(
-        r#"INSERT INTO posts (id, title, slug, excerpt, body, cover_image_key, square_cover_image_key, is_featured, author_name, author_intro, author_avatar_key, status, published_at, category_id, created_at, updated_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::{}, {}, $13, NOW(), NOW())"#,
+        r#"INSERT INTO posts (id, title, slug, excerpt, body, cover_image_key, square_cover_image_key, is_featured, author_name, author_intro, author_avatar_key, company_name, company_intro, company_logo_key, company_website_url, status, published_at, category_id, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::{}, {}, $17, NOW(), NOW())"#,
         "\"PostStatus\"", published_at_sql
     );
 
@@ -325,6 +364,10 @@ async fn create_post_inner(
         .bind(&form.author_name)
         .bind(&form.author_intro)
         .bind(&author_avatar_key)
+        .bind(&form.company_name)
+        .bind(&form.company_intro)
+        .bind(&company_logo_key)
+        .bind(&form.company_website_url)
         .bind(status_db_value(status))
         .bind(&form.category_id)
         .execute(&state.pool)
@@ -351,6 +394,7 @@ async fn update_post_inner(
     let old_cover_key = existing.cover_image_key.clone();
     let old_square_key = existing.square_cover_image_key.clone();
     let old_avatar_key = existing.author_avatar_key.clone();
+    let old_company_logo_key = existing.company_logo_key.clone();
     let mut cover_key = if form.remove_cover {
         None
     } else {
@@ -366,6 +410,11 @@ async fn update_post_inner(
     } else {
         old_avatar_key.clone()
     };
+    let mut company_logo_key = if form.remove_company_logo {
+        None
+    } else {
+        old_company_logo_key.clone()
+    };
 
     if form.cover_image.is_some() {
         cover_key = upload_optional(state, form.cover_image.take(), uploaded_keys).await?;
@@ -375,6 +424,9 @@ async fn update_post_inner(
     }
     if form.author_avatar.is_some() {
         avatar_key = upload_optional(state, form.author_avatar.take(), uploaded_keys).await?;
+    }
+    if form.company_logo.is_some() {
+        company_logo_key = upload_optional(state, form.company_logo.take(), uploaded_keys).await?;
     }
     if let Some(inline_image) = form.inline_image.take() {
         let uploaded = upload_image(state, inline_image).await?;
@@ -387,7 +439,7 @@ async fn update_post_inner(
         PostStatus::Draft => "NULL",
     };
     let query = format!(
-        r#"UPDATE posts SET title=$1, slug=$2, excerpt=$3, body=$4, cover_image_key=$5, square_cover_image_key=$6, is_featured=$7, author_name=$8, author_intro=$9, author_avatar_key=$10, status=$11::{}, published_at={}, category_id=$12, updated_at=NOW() WHERE id=$13"#,
+        r#"UPDATE posts SET title=$1, slug=$2, excerpt=$3, body=$4, cover_image_key=$5, square_cover_image_key=$6, is_featured=$7, author_name=$8, author_intro=$9, author_avatar_key=$10, company_name=$11, company_intro=$12, company_logo_key=$13, company_website_url=$14, status=$15::{}, published_at={}, category_id=$16, updated_at=NOW() WHERE id=$17"#,
         "\"PostStatus\"", published_expr
     );
 
@@ -402,6 +454,10 @@ async fn update_post_inner(
         .bind(&form.author_name)
         .bind(&form.author_intro)
         .bind(&avatar_key)
+        .bind(&form.company_name)
+        .bind(&form.company_intro)
+        .bind(&company_logo_key)
+        .bind(&form.company_website_url)
         .bind(status_db_value(form.status))
         .bind(&form.category_id)
         .bind(id)
@@ -416,6 +472,7 @@ async fn update_post_inner(
         old_cover_key.as_deref(),
         old_square_key.as_deref(),
         old_avatar_key.as_deref(),
+        old_company_logo_key.as_deref(),
     ]
     .into_iter()
     .flatten()
@@ -423,6 +480,7 @@ async fn update_post_inner(
         Some(*key) != cover_key.as_deref()
             && Some(*key) != square_key.as_deref()
             && Some(*key) != avatar_key.as_deref()
+            && Some(*key) != company_logo_key.as_deref()
     }) {
         if let Err(error) = state.storage.delete_object(key).await {
             tracing::error!(?error, key, "failed to delete replaced post image");
@@ -445,12 +503,13 @@ async fn parse_multipart(mut multipart: Multipart) -> Result<PostForm, AppError>
     {
         let name = field.name().unwrap_or_default().to_owned();
         match name.as_str() {
-            "coverImage" | "squareCoverImage" | "authorAvatar" | "inlineImage" => {
+            "coverImage" | "squareCoverImage" | "authorAvatar" | "companyLogo" | "inlineImage" => {
                 if let Some(upload) = parse_image_field(field).await? {
                     match name.as_str() {
                         "coverImage" => form.cover_image = Some(upload),
                         "squareCoverImage" => form.square_cover_image = Some(upload),
                         "authorAvatar" => form.author_avatar = Some(upload),
+                        "companyLogo" => form.company_logo = Some(upload),
                         "inlineImage" => form.inline_image = Some(upload),
                         _ => {}
                     }
@@ -474,11 +533,15 @@ async fn parse_multipart(mut multipart: Multipart) -> Result<PostForm, AppError>
                     "categoryId" => form.category_id = text,
                     "authorName" => form.author_name = text,
                     "authorIntro" => form.author_intro = text,
+                    "companyName" => form.company_name = text,
+                    "companyIntro" => form.company_intro = text,
+                    "companyWebsiteUrl" => form.company_website_url = text,
                     "status" => form.status = parse_status(&text),
                     "isFeatured" => form.is_featured = text == "yes",
                     "removeCover" => form.remove_cover = text == "yes",
                     "removeSquareCover" => form.remove_square_cover = text == "yes",
                     "removeAuthorAvatar" => form.remove_author_avatar = text == "yes",
+                    "removeCompanyLogo" => form.remove_company_logo = text == "yes",
                     _ => {}
                 }
             }
@@ -560,9 +623,17 @@ fn validate_form(
     if form.category_id.is_empty() {
         return Err(AppError::BadRequest("Category is required."));
     }
+    if form.company_website_url.trim().is_empty() {
+        form.company_website_url = "https://myclawteam.ai".to_owned();
+    }
     if form.author_intro.len() > 500 {
         return Err(AppError::BadRequest(
             "Author intro must be 500 characters or fewer.",
+        ));
+    }
+    if form.company_intro.len() > 500 {
+        return Err(AppError::BadRequest(
+            "Company intro must be 500 characters or fewer.",
         ));
     }
     if form.cover_image.is_some() && form.square_cover_image.is_none() {
@@ -611,6 +682,18 @@ fn validate_form(
                 "Author avatar is required before publishing.",
             ));
         }
+        if form.company_name.trim().is_empty() {
+            return Err(AppError::BadRequest(
+                "Company name is required before publishing.",
+            ));
+        }
+        if form.company_intro.trim().is_empty() {
+            return Err(AppError::BadRequest(
+                "Company intro is required before publishing.",
+            ));
+        }
+    } else if form.company_name.trim().is_empty() {
+        form.company_name = "myClawTeam".to_owned();
     }
     Ok(())
 }
@@ -639,6 +722,16 @@ fn validate_publishable(post: &AdminPost) -> Result<(), AppError> {
     if post.author_avatar_key.is_none() {
         return Err(AppError::BadRequest(
             "Author avatar is required before publishing.",
+        ));
+    }
+    if post.company_name.trim().is_empty() {
+        return Err(AppError::BadRequest(
+            "Company name is required before publishing.",
+        ));
+    }
+    if post.company_intro.trim().is_empty() {
+        return Err(AppError::BadRequest(
+            "Company intro is required before publishing.",
         ));
     }
     Ok(())
@@ -779,14 +872,16 @@ async fn fetch_admin_post(state: &AppState, id: &str) -> Result<Option<AdminPost
 
 const ADMIN_POST_SELECT_LIST: &str = r#"
     SELECT p.id, p.title, p.slug, p.excerpt, p.body, p.cover_image_key, p.square_cover_image_key,
-           p.is_featured, p.views, p.author_name, p.author_intro, p.author_avatar_key, p.status,
+           p.is_featured, p.views, p.author_name, p.author_intro, p.author_avatar_key,
+           p.company_name, p.company_intro, p.company_logo_key, p.company_website_url, p.status,
            p.published_at, p.category_id, p.created_at, p.updated_at, c.name AS category_name
     FROM posts p INNER JOIN categories c ON c.id = p.category_id
     ORDER BY p.updated_at DESC, p.created_at DESC
 "#;
 const ADMIN_POST_SELECT_ONE: &str = r#"
     SELECT p.id, p.title, p.slug, p.excerpt, p.body, p.cover_image_key, p.square_cover_image_key,
-           p.is_featured, p.views, p.author_name, p.author_intro, p.author_avatar_key, p.status,
+           p.is_featured, p.views, p.author_name, p.author_intro, p.author_avatar_key,
+           p.company_name, p.company_intro, p.company_logo_key, p.company_website_url, p.status,
            p.published_at, p.category_id, p.created_at, p.updated_at, c.name AS category_name
     FROM posts p INNER JOIN categories c ON c.id = p.category_id
     WHERE p.id = $1
@@ -844,6 +939,10 @@ mod tests {
             author_name: "Author".to_owned(),
             author_intro: "Intro".to_owned(),
             author_avatar_key: Some("post-images/2026/06/avatar.png".to_owned()),
+            company_name: "myClawTeam".to_owned(),
+            company_intro: "Company intro".to_owned(),
+            company_logo_key: Some("post-images/2026/06/company.png".to_owned()),
+            company_website_url: "https://myclawteam.ai".to_owned(),
             status: PostStatus::Draft,
             published_at: None,
             category_id: "category-1".to_owned(),
@@ -932,10 +1031,43 @@ mod tests {
         assert!(
             matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Author avatar"))
         );
+
+        let mut post = publishable_post();
+        post.company_name.clear();
+        assert!(
+            matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Company name"))
+        );
+
+        let mut post = publishable_post();
+        post.company_intro.clear();
+        assert!(
+            matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Company intro"))
+        );
+
+        let mut post = publishable_post();
+        post.company_logo_key = None;
+        assert!(validate_publishable(&post).is_ok());
     }
 
     #[test]
-    fn admin_form_can_publish_when_uploads_supply_required_images() {
+    fn admin_form_defaults_blank_draft_company_name() {
+        let mut form = PostForm {
+            title: "Draft".to_owned(),
+            slug: "draft".to_owned(),
+            excerpt: "Excerpt".to_owned(),
+            body: "Body".to_owned(),
+            category_id: "category-1".to_owned(),
+            company_name: "  ".to_owned(),
+            ..PostForm::default()
+        };
+
+        validate_form(&mut form, false, None).expect("draft form should default company name");
+
+        assert_eq!(form.company_name, "myClawTeam");
+    }
+
+    #[test]
+    fn admin_form_requires_company_fields_before_publishing() {
         let mut form = PostForm {
             title: "Ready".to_owned(),
             slug: "ready".to_owned(),
@@ -944,6 +1076,8 @@ mod tests {
             category_id: "category-1".to_owned(),
             author_name: "Author".to_owned(),
             author_intro: "Intro".to_owned(),
+            company_name: "  ".to_owned(),
+            company_intro: "Company intro".to_owned(),
             status: PostStatus::Published,
             cover_image: Some(ImageUpload {
                 body: vec![1],
@@ -956,6 +1090,79 @@ mod tests {
                 original_filename: None,
             }),
             author_avatar: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            ..PostForm::default()
+        };
+        assert!(
+            matches!(validate_form(&mut form, false, None), Err(AppError::BadRequest(message)) if message.contains("Company name"))
+        );
+
+        let mut form = PostForm {
+            title: "Ready".to_owned(),
+            slug: "ready".to_owned(),
+            excerpt: "Excerpt".to_owned(),
+            body: "Body".to_owned(),
+            category_id: "category-1".to_owned(),
+            author_name: "Author".to_owned(),
+            author_intro: "Intro".to_owned(),
+            company_name: "myClawTeam".to_owned(),
+            company_intro: "  ".to_owned(),
+            status: PostStatus::Published,
+            cover_image: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            square_cover_image: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            author_avatar: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            ..PostForm::default()
+        };
+        assert!(
+            matches!(validate_form(&mut form, false, None), Err(AppError::BadRequest(message)) if message.contains("Company intro"))
+        );
+    }
+
+    #[test]
+    fn admin_form_can_publish_when_uploads_supply_required_images() {
+        let mut form = PostForm {
+            title: "Ready".to_owned(),
+            slug: "ready".to_owned(),
+            excerpt: "Excerpt".to_owned(),
+            body: "Body".to_owned(),
+            category_id: "category-1".to_owned(),
+            author_name: "Author".to_owned(),
+            author_intro: "Intro".to_owned(),
+            company_name: "myClawTeam".to_owned(),
+            company_intro: "Company intro".to_owned(),
+            company_website_url: "https://myclawteam.ai".to_owned(),
+            status: PostStatus::Published,
+            cover_image: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            square_cover_image: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            author_avatar: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            company_logo: Some(ImageUpload {
                 body: vec![1],
                 content_type: "image/png".to_owned(),
                 original_filename: None,

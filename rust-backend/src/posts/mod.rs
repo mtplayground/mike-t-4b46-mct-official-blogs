@@ -14,6 +14,8 @@ use crate::{
     AppState,
 };
 
+const DEFAULT_COMPANY_LOGO_URL: &str = "https://myclawteam.ai/logo.png";
+
 #[derive(Debug, Clone, FromRow)]
 struct PostRow {
     id: String,
@@ -28,6 +30,10 @@ struct PostRow {
     author_name: String,
     author_intro: String,
     author_avatar_key: Option<String>,
+    company_name: String,
+    company_intro: String,
+    company_logo_key: Option<String>,
+    company_website_url: String,
     status: PostStatus,
     published_at: Option<NaiveDateTime>,
     category_id: String,
@@ -65,6 +71,11 @@ pub struct PublicPost {
     pub author_intro: String,
     pub author_avatar_key: Option<String>,
     pub author_avatar_url: Option<String>,
+    pub company_name: String,
+    pub company_intro: String,
+    pub company_logo_key: Option<String>,
+    pub company_logo_url: String,
+    pub company_website_url: String,
     pub status: PostStatus,
     pub published_at: Option<NaiveDateTime>,
     pub category_id: String,
@@ -94,6 +105,10 @@ const PUBLISHED_POST_SELECT: &str = r#"
         p.author_name,
         p.author_intro,
         p.author_avatar_key,
+        p.company_name,
+        p.company_intro,
+        p.company_logo_key,
+        p.company_website_url,
         p.status,
         p.published_at,
         p.category_id,
@@ -162,6 +177,12 @@ impl PostRow {
             .as_deref()
             .map(|key| state.storage.proxied_image_url(key))
             .transpose()?;
+        let company_logo_url = self
+            .company_logo_key
+            .as_deref()
+            .map(|key| state.storage.proxied_image_url(key))
+            .transpose()?
+            .unwrap_or_else(|| DEFAULT_COMPANY_LOGO_URL.to_owned());
 
         Ok(PublicPost {
             id: self.id,
@@ -179,6 +200,11 @@ impl PostRow {
             author_intro: self.author_intro,
             author_avatar_key: self.author_avatar_key,
             author_avatar_url,
+            company_name: self.company_name,
+            company_intro: self.company_intro,
+            company_logo_key: self.company_logo_key,
+            company_logo_url,
+            company_website_url: self.company_website_url,
             status: self.status,
             published_at: self.published_at,
             category_id: self.category_id.clone(),
@@ -203,5 +229,9 @@ mod tests {
         assert!(PUBLISHED_POST_SELECT.contains("status = 'PUBLISHED'"));
         assert!(PUBLISHED_POST_SELECT.contains("published_at IS NOT NULL"));
         assert!(PUBLISHED_POST_SELECT.contains("INNER JOIN categories"));
+        assert!(PUBLISHED_POST_SELECT.contains("p.company_name"));
+        assert!(PUBLISHED_POST_SELECT.contains("p.company_intro"));
+        assert!(PUBLISHED_POST_SELECT.contains("p.company_logo_key"));
+        assert!(PUBLISHED_POST_SELECT.contains("p.company_website_url"));
     }
 }
