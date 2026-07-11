@@ -37,11 +37,14 @@ test("publishedPostWhere scopes list queries to published posts and optional cat
   });
 });
 
-test("published post requirements include cover and author fields", () => {
+test("published post requirements include cover, author, and company fields", () => {
   const completePost = {
     authorAvatarKey: "post-images/2026/06/avatar.png",
     authorIntro: "A short author introduction.",
     authorName: "myClawTeam Editorial Team",
+    companyIntro: "Company intro with https://myclawteam.ai for linkified rendering.",
+    companyLogoKey: null,
+    companyName: "myClawTeam",
     coverImageKey: "post-images/2026/06/cover.png",
   };
 
@@ -50,4 +53,7 @@ test("published post requirements include cover and author fields", () => {
   assert.equal(hasPublishedPostRequiredFields({ ...completePost, authorAvatarKey: null }), false);
   assert.equal(hasPublishedPostRequiredFields({ ...completePost, authorName: "  " }), false);
   assert.equal(hasPublishedPostRequiredFields({ ...completePost, authorIntro: "  " }), false);
+  assert.equal(hasPublishedPostRequiredFields({ ...completePost, companyName: "  " }), false);
+  assert.equal(hasPublishedPostRequiredFields({ ...completePost, companyIntro: "  " }), false);
+  assert.equal(hasPublishedPostRequiredFields({ ...completePost, companyLogoKey: null }), true);
 });
