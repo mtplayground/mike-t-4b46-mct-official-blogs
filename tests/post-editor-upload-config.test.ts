@@ -17,6 +17,12 @@ test("post editor form submits directly to Rust multipart endpoints", async () =
   assert.match(source, /name="companyWebsiteUrl"/);
   assert.match(source, /name="companyLogo"/);
   assert.match(source, /name="removeCompanyLogo"/);
+  assert.match(source, /post\?\.companyLogoKey/);
+  assert.match(source, /encType="multipart\/form-data"/);
+  assert.match(source, /\| "companyName"/);
+  assert.match(source, /\| "companyIntro"/);
+  assert.match(source, /\| "companyLogoKey"/);
+  assert.match(source, /\| "companyWebsiteUrl"/);
   assert.doesNotMatch(source, /CoverImageCropper/);
 });
 
@@ -44,4 +50,13 @@ test("post editor surfaces a clear client-side message for oversized multipart i
   assert.match(source, /MAX_MULTIPART_UPLOAD_BYTES = 50 \* MEGABYTE/);
   assert.match(source, /"squareCoverImage"/);
   assert.match(source, /Keep combined image uploads under 50 MB and try again/);
+});
+
+test("AdminPost type includes company card fields", async () => {
+  const source = await readFile("lib/admin/cms-api.ts", "utf8");
+
+  assert.match(source, /companyName: string;/);
+  assert.match(source, /companyIntro: string;/);
+  assert.match(source, /companyLogoKey: string \| null;/);
+  assert.match(source, /companyWebsiteUrl: string;/);
 });

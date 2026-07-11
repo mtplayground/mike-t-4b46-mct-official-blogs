@@ -14,6 +14,9 @@ export type PublishedPostRequirementFields = {
   authorAvatarKey: string | null;
   authorIntro: string;
   authorName: string;
+  companyIntro: string;
+  companyLogoKey?: string | null;
+  companyName: string;
   coverImageKey: string | null;
 };
 
@@ -23,7 +26,12 @@ export function isPublishedPostVisible(post: PostVisibilityFields) {
 
 export function hasPublishedPostRequiredFields(post: PublishedPostRequirementFields) {
   return Boolean(
-    post.authorAvatarKey && post.authorIntro.trim() && post.authorName.trim() && post.coverImageKey,
+    post.authorAvatarKey &&
+    post.authorIntro.trim() &&
+    post.authorName.trim() &&
+    post.companyIntro.trim() &&
+    post.companyName.trim() &&
+    post.coverImageKey,
   );
 }
 

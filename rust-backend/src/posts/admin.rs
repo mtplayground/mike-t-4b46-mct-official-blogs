@@ -1134,6 +1134,42 @@ mod tests {
     }
 
     #[test]
+    fn admin_form_can_publish_without_company_logo() {
+        let mut form = PostForm {
+            title: "Ready".to_owned(),
+            slug: "ready".to_owned(),
+            excerpt: "Excerpt".to_owned(),
+            body: "Body".to_owned(),
+            category_id: "category-1".to_owned(),
+            author_name: "Author".to_owned(),
+            author_intro: "Intro".to_owned(),
+            company_name: "myClawTeam".to_owned(),
+            company_intro: "Company intro".to_owned(),
+            company_website_url: "https://myclawteam.ai".to_owned(),
+            status: PostStatus::Published,
+            cover_image: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            square_cover_image: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            author_avatar: Some(ImageUpload {
+                body: vec![1],
+                content_type: "image/png".to_owned(),
+                original_filename: None,
+            }),
+            company_logo: None,
+            ..PostForm::default()
+        };
+
+        assert!(validate_form(&mut form, false, None).is_ok());
+    }
+
+    #[test]
     fn admin_form_can_publish_when_uploads_supply_required_images() {
         let mut form = PostForm {
             title: "Ready".to_owned(),
