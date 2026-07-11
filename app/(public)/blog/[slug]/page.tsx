@@ -9,6 +9,10 @@ import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/conten
 import { getRustPost, getRustPostList, type RustPost } from "@/lib/api/rust-blog";
 import { absoluteSiteUrl, buildPageMetadata, siteName } from "@/lib/metadata";
 
+const DEFAULT_COMPANY_NAME = "myClawTeam";
+const DEFAULT_COMPANY_LOGO_URL = "https://myclawteam.ai/logo.png";
+const DEFAULT_COMPANY_WEBSITE_URL = "https://myclawteam.ai";
+
 const dateFormatter = new Intl.DateTimeFormat("en", {
   day: "numeric",
   month: "long",
@@ -108,41 +112,38 @@ function serializeJsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
-function MyClawTeamCard() {
-  const socialLinks = [
-    {
-      href: "https://x.com/myclawteam_ai",
-      label: "X",
-    },
-    {
-      href: "https://discord.gg/p8RtDfjmWK",
-      label: "Discord",
-    },
-  ];
+type CompanyCardProps = {
+  intro: string;
+  logoUrl: string;
+  name: string;
+  websiteUrl: string;
+};
+
+function CompanyCard({ intro, logoUrl, name, websiteUrl }: CompanyCardProps) {
+  const companyName = name.trim() || DEFAULT_COMPANY_NAME;
+  const companyIntro = intro.trim();
+  const companyLogoUrl = logoUrl || DEFAULT_COMPANY_LOGO_URL;
+  const companyWebsiteUrl = websiteUrl.trim() || DEFAULT_COMPANY_WEBSITE_URL;
 
   return (
     <aside className="grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial sm:grid-cols-[auto_1fr] sm:items-start">
-      <img alt="myClawTeam logo" className="h-12 w-auto" src="https://myclawteam.ai/logo.png" />
+      {/* eslint-disable-next-line @next/next/no-img-element -- Company logos may be proxied by the Rust image proxy. */}
+      <img alt={`${companyName} logo`} className="h-12 w-auto" src={companyLogoUrl} />
       <div className="grid gap-4">
-        <p className="eyebrow">About myClawTeam</p>
-        <p className="text-[1.05rem] leading-8 text-editorial-muted">
-          myClawTeam AI (MCT) is a professional AI agent team cloud to help you ship high-quality
-          software easily. myClawTeam turns your ideas into production-ready software within hours.
-          You just talk — we handle the rest.
-        </p>
-        <div className="flex flex-wrap gap-4 pt-1" aria-label="myClawTeam social links">
-          {socialLinks.map((link) => (
-            <a
-              key={link.href}
-              className="font-bold text-editorial-red underline decoration-editorial-red decoration-2 underline-offset-4 transition hover:text-editorial-ink"
-              href={link.href}
-              rel="noreferrer"
-              target="_blank"
-            >
-              {link.label}
-            </a>
-          ))}
-        </div>
+        <p className="eyebrow">About {companyName}</p>
+        {companyIntro ? (
+          <p className="text-[1.05rem] leading-8 text-editorial-muted">
+            <LinkifiedText text={companyIntro} />
+          </p>
+        ) : null}
+        <a
+          className="w-fit font-bold text-editorial-red underline decoration-editorial-red decoration-2 underline-offset-4 transition hover:text-editorial-ink"
+          href={companyWebsiteUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Official website
+        </a>
       </div>
     </aside>
   );
@@ -203,6 +204,9 @@ function buildArticleJsonLd({
   post: RustPost;
 }) {
   const canonicalUrl = absoluteSiteUrl(`/blog/${post.slug}`);
+  const publisherName = post.companyName.trim() || DEFAULT_COMPANY_NAME;
+  const publisherLogoUrl = post.companyLogoUrl || DEFAULT_COMPANY_LOGO_URL;
+  const publisherUrl = post.companyWebsiteUrl.trim() || DEFAULT_COMPANY_WEBSITE_URL;
 
   return {
     "@context": "https://schema.org",
@@ -232,8 +236,12 @@ function buildArticleJsonLd({
     },
     publisher: {
       "@type": "Organization",
-      name: "myClawTeam",
-      url: absoluteSiteUrl("/"),
+      name: publisherName,
+      url: publisherUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: publisherLogoUrl,
+      },
     },
     isPartOf: {
       "@type": "Blog",
@@ -351,7 +359,12 @@ export default async function PostPage({ params }: PostPageProps) {
                 </div>
               </aside>
 
-              <MyClawTeamCard />
+              <CompanyCard
+                intro={post.companyIntro}
+                logoUrl={post.companyLogoUrl}
+                name={post.companyName}
+                websiteUrl={post.companyWebsiteUrl}
+              />
             </div>
           </div>
         </section>
