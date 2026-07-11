@@ -14,6 +14,10 @@ type PostEditorFormProps = {
     | "authorName"
     | "body"
     | "categoryId"
+    | "companyIntro"
+    | "companyLogoKey"
+    | "companyName"
+    | "companyWebsiteUrl"
     | "coverImageKey"
     | "excerpt"
     | "id"
@@ -33,7 +37,12 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
   const isEditing = Boolean(post);
 
   return (
-    <form action={formAction(post)} className="grid gap-8" encType="multipart/form-data" method="post">
+    <form
+      action={formAction(post)}
+      className="grid gap-8"
+      encType="multipart/form-data"
+      method="post"
+    >
       {post ? <input name="postId" type="hidden" value={post.id} /> : null}
 
       {error ? (
@@ -245,6 +254,71 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
       </div>
 
       <div className="grid gap-5 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial">
+        <div className="grid gap-2">
+          <p className="text-sm font-bold uppercase text-editorial-ink">Company</p>
+          <p className="text-sm leading-6 text-editorial-muted">
+            Company name and intro are required before a post can be published. The logo is
+            optional; the public article page falls back to the official logo when none is set.
+          </p>
+        </div>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold uppercase text-editorial-ink">Company name</span>
+          <input
+            className="rounded-button border border-editorial-line px-4 py-3 text-base outline-none transition focus:border-editorial-red focus:ring-2 focus:ring-editorial-red/20"
+            defaultValue={post?.companyName ?? "myClawTeam"}
+            maxLength={160}
+            name="companyName"
+            type="text"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold uppercase text-editorial-ink">Company intro</span>
+          <textarea
+            className="min-h-28 rounded-card border border-editorial-line px-4 py-3 text-base leading-7 outline-none transition focus:border-editorial-red focus:ring-2 focus:ring-editorial-red/20"
+            defaultValue={post?.companyIntro}
+            maxLength={500}
+            name="companyIntro"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold uppercase text-editorial-ink">
+            Company website URL
+          </span>
+          <input
+            className="rounded-button border border-editorial-line px-4 py-3 text-base outline-none transition focus:border-editorial-red focus:ring-2 focus:ring-editorial-red/20"
+            defaultValue={post?.companyWebsiteUrl ?? "https://myclawteam.ai"}
+            name="companyWebsiteUrl"
+            type="url"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold uppercase text-editorial-ink">Company logo</span>
+          <input
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="rounded-button border border-editorial-line bg-editorial-white px-4 py-3 text-sm"
+            name="companyLogo"
+            type="file"
+          />
+        </label>
+
+        {post?.companyLogoKey ? (
+          <label className="flex items-center gap-3 text-sm text-editorial-muted">
+            <input
+              className="size-4 accent-editorial-red"
+              name="removeCompanyLogo"
+              type="checkbox"
+              value="yes"
+            />
+            Remove current company logo
+          </label>
+        ) : null}
+      </div>
+
+      <div className="grid gap-5 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial">
         <label className="grid gap-2">
           <span className="text-sm font-bold uppercase text-editorial-ink">Markdown body</span>
           <textarea
@@ -274,7 +348,8 @@ export function PostEditorForm({ categories, error, post }: PostEditorFormProps)
         <button className="editorial-button" type="submit">
           {isEditing ? "Update post" : "Create post"}
         </button>
-        <Link prefetch={false}
+        <Link
+          prefetch={false}
           className="inline-flex w-fit justify-center rounded-button border border-editorial-line bg-editorial-white px-6 py-3 text-sm font-bold text-editorial-ink transition hover:border-editorial-red hover:text-editorial-red"
           href="/admin"
         >
