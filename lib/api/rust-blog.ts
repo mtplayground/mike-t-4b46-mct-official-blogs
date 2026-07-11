@@ -1,6 +1,9 @@
 import { getSelfUrl } from "@/lib/env/server";
 
 const PUBLIC_REVALIDATE_SECONDS = 300;
+const DEFAULT_COMPANY_NAME = "myClawTeam";
+const DEFAULT_COMPANY_LOGO_URL = "https://myclawteam.ai/logo.png";
+const DEFAULT_COMPANY_WEBSITE_URL = "https://myclawteam.ai";
 
 type ApiCategory = {
   id: string;
@@ -25,6 +28,11 @@ type ApiPost = {
   authorIntro: string;
   authorAvatarKey: string | null;
   authorAvatarUrl: string | null;
+  companyName?: string | null;
+  companyIntro?: string | null;
+  companyLogoKey?: string | null;
+  companyLogoUrl?: string | null;
+  companyWebsiteUrl?: string | null;
   status: "DRAFT" | "PUBLISHED";
   publishedAt: string | null;
   categoryId: string;
@@ -40,7 +48,22 @@ type ApiPostListResponse = {
 
 export type RustCategory = ApiCategory;
 
-export type RustPost = Omit<ApiPost, "createdAt" | "publishedAt" | "updatedAt"> & {
+export type RustPost = Omit<
+  ApiPost,
+  | "companyIntro"
+  | "companyLogoKey"
+  | "companyLogoUrl"
+  | "companyName"
+  | "companyWebsiteUrl"
+  | "createdAt"
+  | "publishedAt"
+  | "updatedAt"
+> & {
+  companyIntro: string;
+  companyLogoKey: string | null;
+  companyLogoUrl: string;
+  companyName: string;
+  companyWebsiteUrl: string;
   createdAt: Date;
   publishedAt: Date | null;
   updatedAt: Date;
@@ -67,6 +90,11 @@ function parseApiDate(value: string) {
 function normalizePost(post: ApiPost): RustPost {
   return {
     ...post,
+    companyIntro: post.companyIntro ?? "",
+    companyLogoKey: post.companyLogoKey ?? null,
+    companyLogoUrl: post.companyLogoUrl ?? DEFAULT_COMPANY_LOGO_URL,
+    companyName: post.companyName ?? DEFAULT_COMPANY_NAME,
+    companyWebsiteUrl: post.companyWebsiteUrl ?? DEFAULT_COMPANY_WEBSITE_URL,
     createdAt: parseApiDate(post.createdAt),
     publishedAt: post.publishedAt ? parseApiDate(post.publishedAt) : null,
     updatedAt: parseApiDate(post.updatedAt),
