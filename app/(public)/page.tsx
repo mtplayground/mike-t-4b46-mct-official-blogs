@@ -4,8 +4,6 @@ import { getRustPostList, type RustPost } from "@/lib/api/rust-blog";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
 import { buildPageMetadata } from "@/lib/metadata";
 
-export const dynamic = "force-dynamic";
-
 export const metadata = buildPageMetadata({
   title: "Official myClawTeam updates and practical AI engineering notes",
   description:
@@ -94,11 +92,16 @@ export default async function HomePage() {
                   {heroPost.title}
                 </h1>
                 <p className="text-lead text-editorial-muted">{heroPost.excerpt}</p>
-                <Link prefetch={false} className="editorial-button w-fit" href={`/blog/${heroPost.slug}`}>
+                <Link
+                  prefetch={false}
+                  className="editorial-button w-fit"
+                  href={`/blog/${heroPost.slug}`}
+                >
                   Read article
                 </Link>
               </div>
-              <Link prefetch={false}
+              <Link
+                prefetch={false}
                 aria-label={`Read ${heroPost.title}`}
                 className="group overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial"
                 href={`/blog/${heroPost.slug}`}

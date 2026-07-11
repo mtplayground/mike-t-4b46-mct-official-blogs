@@ -6,10 +6,8 @@ import remarkGfm from "remark-gfm";
 
 import { ArticleEngagement } from "@/components/blog/article-engagement";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
-import { getRustPost, type RustPost } from "@/lib/api/rust-blog";
+import { getRustPost, getRustPostList, type RustPost } from "@/lib/api/rust-blog";
 import { absoluteSiteUrl, buildPageMetadata, siteName } from "@/lib/metadata";
-
-export const dynamic = "force-dynamic";
 
 const dateFormatter = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -124,11 +122,7 @@ function MyClawTeamCard() {
 
   return (
     <aside className="grid gap-5 rounded-card border border-editorial-line bg-editorial-cream p-6 shadow-editorial sm:grid-cols-[auto_1fr] sm:items-start">
-      <img
-        alt="myClawTeam logo"
-        className="h-12 w-auto"
-        src="https://myclawteam.ai/logo.png"
-      />
+      <img alt="myClawTeam logo" className="h-12 w-auto" src="https://myclawteam.ai/logo.png" />
       <div className="grid gap-4">
         <p className="eyebrow">About myClawTeam</p>
         <p className="text-[1.05rem] leading-8 text-editorial-muted">
@@ -249,6 +243,14 @@ function buildArticleJsonLd({
   };
 }
 
+export async function generateStaticParams() {
+  const { posts } = await getRustPostList();
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }));
+}
+
 export async function generateMetadata({ params }: PostPageProps) {
   const { slug } = await params;
   const post = await getRustPost(slug);
@@ -294,7 +296,8 @@ export default async function PostPage({ params }: PostPageProps) {
       <article>
         <section className="section section-cream">
           <div className="page-shell grid gap-10">
-            <Link prefetch={false}
+            <Link
+              prefetch={false}
               className="w-fit text-sm font-bold text-editorial-muted underline decoration-editorial-red decoration-2 underline-offset-8 transition hover:text-editorial-red"
               href="/"
             >
