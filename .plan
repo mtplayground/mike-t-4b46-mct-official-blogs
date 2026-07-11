@@ -1,18 +1,24 @@
-Architecture plan for Issue #160: Make public blog pages render fresh data instead of stale ISR
+Architecture plan for issues #162-#168: company card fields, uploads, SEO, and navigation
 
 Current architecture:
-- Next.js App Router frontend under app/ renders public blog pages and admin UI.
-- Public pages fetch content through lib/api/rust-blog.ts, which calls the Rust Axum API.
-- Rust backend owns PostgreSQL queries, object-storage URL generation, admin mutations, newsletter, and view APIs.
-- Public blog data currently uses ISR-style caching in two places: page-level revalidate exports and fetch next.revalidate settings.
+- Next.js App Router frontend lives under `app/`, with public pages in `app/(public)` and the admin CMS in `app/admin`.
+- Shared React UI lives under `components/`; layout/header/footer are in `components/layout` and the admin post editor is in `app/admin/posts/_components`.
+- Frontend server components call the Rust backend through typed helpers in `lib/api/rust-blog.ts`; admin pages use `lib/admin/cms-api.ts` to forward cookies and multipart form submissions.
+- Rust Axum backend in `rust-backend/src` owns public post reads, admin post CRUD, validation, upload handling, S3-compatible object storage, newsletter/subscriber APIs, view counts, and revalidation.
+- PostgreSQL schema source and migrations live under `prisma/`; runtime database access is SQLx in Rust, so schema changes must be mirrored in Rust SQL/select models.
 
-Implementation plan:
-- app/(public)/page.tsx: replace the homepage `export const revalidate = 300` with `export const dynamic = "force-dynamic"` so the public homepage is rendered on every request.
-- app/(public)/blog/[slug]/page.tsx: replace article page `export const revalidate = 300` with `export const dynamic = "force-dynamic"` so article detail requests always hit fresh server data.
-- lib/api/rust-blog.ts: remove the `next: { revalidate: RUST_API_REVALIDATE_SECONDS }` fetch option and use `cache: "no-store"` for Rust API requests. Keep the typed API normalization and exported public functions unchanged.
-- Consider whether the now-unused `RUST_API_REVALIDATE_SECONDS` constant should be removed or retained only if referenced elsewhere; prefer removing it if unused to satisfy lint.
+Issue dependency order:
+1. #162 is independent: add an external "Official Website" anchor to `components/layout/site-header.tsx` matching existing nav styles.
+2. #163 is independent but touches public rendering/cache behavior: restore ISR by removing public `force-dynamic`, using `next: { revalidate: 300 }` in `lib/api/rust-blog.ts`, and adding `generateStaticParams` for article slugs.
+3. #164 must land before API/editor/render work: add `company_name`, `company_intro`, `company_logo_key`, and `company_website_url` to `Post` in `prisma/schema.prisma` plus a migration with safe defaults.
+4. #165 depends on #164: wire company fields through Rust public/admin structs, SQL SELECT/INSERT/UPDATE, multipart parsing, object-storage upload/delete cleanup, signed `companyLogoUrl`, and publish validation.
+5. #166 depends on #164/#165 types: extend `AdminPost`/form Pick in `lib/admin/cms-api.ts` and add a Company card in `post-editor-form.tsx` with text, URL, logo upload, and remove-logo controls.
+6. #167 depends on #165: extend `ApiPost`/`RustPost` in `lib/api/rust-blog.ts` and replace the hardcoded article company/about card in `app/(public)/blog/[slug]/page.tsx` with a prop-driven `CompanyCard`.
+7. #168 depends on #164-#167: update Rust/admin/frontend unit tests for validation, editor multipart preservation, content visibility defaults, and public rendering expectations.
 
-Dependencies and design decisions:
-- No database schema, Rust backend route, admin flow, or object-storage changes are needed.
-- The change intentionally bypasses Next ISR for public reads, but existing revalidation endpoint can remain for admin mutation compatibility unless later issues remove it.
-- Tests should focus on source-level expectations and build/lint compatibility: ensure public pages declare force-dynamic and Rust API fetches are no-store.
+Key design decisions:
+- Treat company logo exactly like existing cover/avatar storage: persist only a relative `companyLogoKey`, prepend `OBJECT_STORAGE_PREFIX` inside the Rust storage wrapper, expose public reads through `/api/image/*key`, and clean up replaced/removed/deleted objects.
+- Keep defaults backward-compatible: existing posts render `myClawTeam`, blank intro until edited, no logo unless present, and `https://myclawteam.ai` as website URL.
+- Published post validation should require enough company data for a complete public card (`companyName` and `companyIntro` per issue #168) while drafts may remain incomplete.
+- Keep public/admin type boundaries explicit: Rust API JSON uses camelCase; Next helpers normalize dates only and should not invent storage URLs client-side.
+- Preserve admin auth/session behavior and existing upload limits; new company logo multipart fields should reuse existing image type/size validation paths.
