@@ -3,7 +3,15 @@ import Link from "next/link";
 const navigation = [
   { href: "/", label: "Home" },
   { href: "/admin/login", label: "Admin" },
+  {
+    external: true,
+    href: "https://myclawteam.ai",
+    label: "Official Website",
+  },
 ];
+
+const navItemClassName =
+  "inline-flex rounded-button px-4 py-2 text-sm font-bold text-editorial-muted transition hover:bg-editorial-cream hover:text-editorial-ink focus:outline-none focus:ring-2 focus:ring-editorial-red focus:ring-offset-2";
 
 export function SiteHeader() {
   return (
@@ -30,12 +38,20 @@ export function SiteHeader() {
           <ul className="flex flex-wrap items-center gap-2">
             {navigation.map((item) => (
               <li key={item.href}>
-                <Link prefetch={false}
-                  className="inline-flex rounded-button px-4 py-2 text-sm font-bold text-editorial-muted transition hover:bg-editorial-cream hover:text-editorial-ink focus:outline-none focus:ring-2 focus:ring-editorial-red focus:ring-offset-2"
-                  href={item.href}
-                >
-                  {item.label}
-                </Link>
+                {item.external ? (
+                  <a
+                    className={navItemClassName}
+                    href={item.href}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <Link prefetch={false} className={navItemClassName} href={item.href}>
+                    {item.label}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
