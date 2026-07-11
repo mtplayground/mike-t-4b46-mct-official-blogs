@@ -11,6 +11,12 @@ test("post editor form submits directly to Rust multipart endpoints", async () =
   assert.match(source, /PostUploadSizeWarning/);
   assert.match(source, /name="coverImage"/);
   assert.match(source, /name="squareCoverImage"/);
+  assert.match(source, /Company/);
+  assert.match(source, /name="companyName"/);
+  assert.match(source, /name="companyIntro"/);
+  assert.match(source, /name="companyWebsiteUrl"/);
+  assert.match(source, /name="companyLogo"/);
+  assert.match(source, /name="removeCompanyLogo"/);
   assert.doesNotMatch(source, /CoverImageCropper/);
 });
 

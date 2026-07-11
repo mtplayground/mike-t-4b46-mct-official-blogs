@@ -1,6 +1,11 @@
 import { cookies } from "next/headers";
 
-export type AdminCategory = { id: string; name: string; slug?: string; description?: string | null };
+export type AdminCategory = {
+  id: string;
+  name: string;
+  slug?: string;
+  description?: string | null;
+};
 export type AdminPost = {
   id: string;
   title: string;
@@ -14,6 +19,10 @@ export type AdminPost = {
   authorName: string;
   authorIntro: string;
   authorAvatarKey: string | null;
+  companyName: string;
+  companyIntro: string;
+  companyLogoKey: string | null;
+  companyWebsiteUrl: string;
   status: "DRAFT" | "PUBLISHED";
   publishedAt: string | null;
   categoryId: string;
@@ -26,7 +35,10 @@ export type AdminSubscriber = { id: string; email: string; createdAt: string };
 type MutationResponse = { message?: string; notice?: string; post?: AdminPost | null };
 
 function rustApiBaseUrl() {
-  return (process.env.RUST_API_BASE_URL || process.env.SELF_URL || "http://127.0.0.1:8080").replace(/\/$/u, "");
+  return (process.env.RUST_API_BASE_URL || process.env.SELF_URL || "http://127.0.0.1:8080").replace(
+    /\/$/u,
+    "",
+  );
 }
 
 function rustApiUrl(path: string) {
