@@ -25,6 +25,16 @@ pub struct StorageClient {
 }
 
 impl StorageClient {
+    #[cfg(test)]
+    pub(crate) fn for_tests(self_url: &str) -> Self {
+        Self {
+            client: None,
+            bucket: "bucket".to_owned(),
+            prefix: "tenant-prefix/".to_owned(),
+            self_url: self_url.trim_end_matches('/').to_owned(),
+        }
+    }
+
     pub async fn from_config(config: &ObjectStorageConfig, self_url: &str) -> Self {
         let credentials = Credentials::new(
             config.access_key_id.clone(),
@@ -216,12 +226,7 @@ mod tests {
     use super::*;
 
     fn storage() -> StorageClient {
-        StorageClient {
-            client: None,
-            bucket: "bucket".to_owned(),
-            prefix: "tenant-prefix/".to_owned(),
-            self_url: "https://blog.example.com".to_owned(),
-        }
+        StorageClient::for_tests("https://blog.example.com")
     }
 
     #[test]

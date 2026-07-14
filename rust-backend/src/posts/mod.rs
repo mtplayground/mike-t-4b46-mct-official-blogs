@@ -11,10 +11,14 @@ use sqlx::FromRow;
 use crate::{
     error::AppError,
     models::{CategorySlug, PostStatus},
+    storage::StorageClient,
     AppState,
 };
 
+const DEFAULT_COMPANY_NAME: &str = "myClawTeam";
+const DEFAULT_COMPANY_INTRO: &str = "";
 const DEFAULT_COMPANY_LOGO_URL: &str = "https://myclawteam.ai/logo.png";
+const DEFAULT_COMPANY_WEBSITE_URL: &str = "https://myclawteam.ai";
 
 #[derive(Debug, Clone, FromRow)]
 struct PostRow {
@@ -30,10 +34,10 @@ struct PostRow {
     author_name: String,
     author_intro: String,
     author_avatar_key: Option<String>,
-    company_name: String,
-    company_intro: String,
+    company_name: Option<String>,
+    company_intro: Option<String>,
     company_logo_key: Option<String>,
-    company_website_url: String,
+    company_website_url: Option<String>,
     status: PostStatus,
     published_at: Option<NaiveDateTime>,
     category_id: String,
@@ -130,17 +134,7 @@ pub async fn list_posts(State(state): State<AppState>) -> Result<Json<PostListRe
     ))
     .fetch_all(&state.pool)
     .await?;
-    let posts = rows
-        .into_iter()
-        .map(|row| row.into_public_post(&state))
-        .collect::<Result<Vec<_>, _>>()?;
-    let hero_post = posts
-        .iter()
-        .find(|post| post.is_featured)
-        .cloned()
-        .or_else(|| posts.first().cloned());
-
-    Ok(Json(PostListResponse { hero_post, posts }))
+    Ok(Json(post_list_response_from_rows(rows, &state.storage)?))
 }
 
 pub async fn get_post(
@@ -156,31 +150,48 @@ pub async fn get_post(
     .await?;
     let post = row.ok_or(AppError::NotFound("Post not found."))?;
 
-    Ok(Json(post.into_public_post(&state)?))
+    Ok(Json(post.into_public_post(&state.storage)?))
+}
+
+fn post_list_response_from_rows(
+    rows: Vec<PostRow>,
+    storage: &StorageClient,
+) -> Result<PostListResponse, AppError> {
+    let posts = rows
+        .into_iter()
+        .map(|row| row.into_public_post(storage))
+        .collect::<Result<Vec<_>, _>>()?;
+    let hero_post = posts
+        .iter()
+        .find(|post| post.is_featured)
+        .cloned()
+        .or_else(|| posts.first().cloned());
+
+    Ok(PostListResponse { hero_post, posts })
 }
 
 impl PostRow {
-    fn into_public_post(self, state: &AppState) -> Result<PublicPost, AppError> {
-        let body = state.storage.sign_markdown_storage_references(&self.body);
+    fn into_public_post(self, storage: &StorageClient) -> Result<PublicPost, AppError> {
+        let body = storage.sign_markdown_storage_references(&self.body);
         let cover_image_url = self
             .cover_image_key
             .as_deref()
-            .map(|key| state.storage.proxied_image_url(key))
+            .map(|key| storage.proxied_image_url(key))
             .transpose()?;
         let square_cover_image_url = self
             .square_cover_image_key
             .as_deref()
-            .map(|key| state.storage.proxied_image_url(key))
+            .map(|key| storage.proxied_image_url(key))
             .transpose()?;
         let author_avatar_url = self
             .author_avatar_key
             .as_deref()
-            .map(|key| state.storage.proxied_image_url(key))
+            .map(|key| storage.proxied_image_url(key))
             .transpose()?;
         let company_logo_url = self
             .company_logo_key
             .as_deref()
-            .map(|key| state.storage.proxied_image_url(key))
+            .map(|key| storage.proxied_image_url(key))
             .transpose()?
             .unwrap_or_else(|| DEFAULT_COMPANY_LOGO_URL.to_owned());
 
@@ -200,11 +211,17 @@ impl PostRow {
             author_intro: self.author_intro,
             author_avatar_key: self.author_avatar_key,
             author_avatar_url,
-            company_name: self.company_name,
-            company_intro: self.company_intro,
+            company_name: self
+                .company_name
+                .unwrap_or_else(|| DEFAULT_COMPANY_NAME.to_owned()),
+            company_intro: self
+                .company_intro
+                .unwrap_or_else(|| DEFAULT_COMPANY_INTRO.to_owned()),
             company_logo_key: self.company_logo_key,
             company_logo_url,
-            company_website_url: self.company_website_url,
+            company_website_url: self
+                .company_website_url
+                .unwrap_or_else(|| DEFAULT_COMPANY_WEBSITE_URL.to_owned()),
             status: self.status,
             published_at: self.published_at,
             category_id: self.category_id.clone(),
@@ -223,6 +240,7 @@ impl PostRow {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::StorageClient;
 
     #[test]
     fn public_post_select_only_returns_published_visible_posts() {
@@ -234,4 +252,57 @@ mod tests {
         assert!(PUBLISHED_POST_SELECT.contains("p.company_logo_key"));
         assert!(PUBLISHED_POST_SELECT.contains("p.company_website_url"));
     }
+
+    #[test]
+    fn post_list_response_includes_legacy_published_posts_without_company_fields() {
+        let published_at =
+            NaiveDateTime::parse_from_str("2026-07-01 12:00:00", "%Y-%m-%d %H:%M:%S")
+                .expect("valid test datetime");
+        let storage = StorageClient::for_tests("https://blog.example.com");
+        let legacy_row = PostRow {
+            id: "post-legacy".to_owned(),
+            title: "Legacy published post".to_owned(),
+            slug: "legacy-published-post".to_owned(),
+            excerpt: "A post created before company fields were populated.".to_owned(),
+            body: "Legacy body".to_owned(),
+            cover_image_key: None,
+            square_cover_image_key: None,
+            is_featured: false,
+            views: 42,
+            author_name: "Mike".to_owned(),
+            author_intro: "Author intro".to_owned(),
+            author_avatar_key: None,
+            company_name: None,
+            company_intro: None,
+            company_logo_key: None,
+            company_website_url: None,
+            status: PostStatus::Published,
+            published_at: Some(published_at),
+            category_id: "cat-thoughts".to_owned(),
+            created_at: published_at,
+            updated_at: published_at,
+            category_slug: CategorySlug::Thoughts,
+            category_name: "Thoughts".to_owned(),
+            category_description: Some("Long-form notes".to_owned()),
+        };
+
+        let response = post_list_response_from_rows(vec![legacy_row], &storage)
+            .expect("legacy row should serialize as a public post");
+
+        assert_eq!(response.posts.len(), 1);
+        assert_eq!(
+            response
+                .hero_post
+                .as_ref()
+                .expect("first post becomes fallback hero")
+                .slug,
+            "legacy-published-post"
+        );
+        let post = &response.posts[0];
+        assert_eq!(post.company_name, DEFAULT_COMPANY_NAME);
+        assert_eq!(post.company_intro, DEFAULT_COMPANY_INTRO);
+        assert_eq!(post.company_logo_url, DEFAULT_COMPANY_LOGO_URL);
+        assert_eq!(post.company_website_url, DEFAULT_COMPANY_WEBSITE_URL);
+    }
+
 }
