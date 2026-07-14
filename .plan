@@ -1,24 +1,31 @@
-Architecture plan for issues #162-#168: company card fields, uploads, SEO, and navigation
+Architecture plan for issues #176 and #177
 
-Current architecture:
-- Next.js App Router frontend lives under `app/`, with public pages in `app/(public)` and the admin CMS in `app/admin`.
-- Shared React UI lives under `components/`; layout/header/footer are in `components/layout` and the admin post editor is in `app/admin/posts/_components`.
-- Frontend server components call the Rust backend through typed helpers in `lib/api/rust-blog.ts`; admin pages use `lib/admin/cms-api.ts` to forward cookies and multipart form submissions.
-- Rust Axum backend in `rust-backend/src` owns public post reads, admin post CRUD, validation, upload handling, S3-compatible object storage, newsletter/subscriber APIs, view counts, and revalidation.
-- PostgreSQL schema source and migrations live under `prisma/`; runtime database access is SQLx in Rust, so schema changes must be mirrored in Rust SQL/select models.
+Project structure and relevant modules
+- Frontend: Next.js App Router pages live under app/.
+  - app/(public)/page.tsx is the homepage that calls getRustPostList() and decides whether to render the hero/article grid, an empty archive state, or an API error state.
+  - app/(public)/error.tsx and root error boundaries can be reused if the API client throws instead of returning a value.
+- Frontend API adapter: lib/api/rust-blog.ts owns server-side fetches from the Next app to the Rust API.
+  - This module should expose typed success and failure behavior for list/detail fetches.
+  - Shared normalization for Rust API post payloads stays here so pages do not duplicate date/company fallback logic.
+- Backend API: rust-backend/src/posts/mod.rs owns public post list/detail endpoints.
+  - GET /api/posts should use the same published-post projection as GET /api/posts/:slug, including company_name, company_intro, company_logo_key, and company_website_url.
+  - Public response structs (PostRow, PublicPost, PostListResponse, CategorySummary) remain the shared Rust types for list/detail serialization.
+- Tests:
+  - Existing TypeScript tests under tests/ can cover frontend API failure semantics and homepage rendering branches.
+  - Rust/backend tests should focus on query shape and row mapping where practical without requiring a live database.
 
-Issue dependency order:
-1. #162 is independent: add an external "Official Website" anchor to `components/layout/site-header.tsx` matching existing nav styles.
-2. #163 is independent but touches public rendering/cache behavior: restore ISR by removing public `force-dynamic`, using `next: { revalidate: 300 }` in `lib/api/rust-blog.ts`, and adding `generateStaticParams` for article slugs.
-3. #164 must land before API/editor/render work: add `company_name`, `company_intro`, `company_logo_key`, and `company_website_url` to `Post` in `prisma/schema.prisma` plus a migration with safe defaults.
-4. #165 depends on #164: wire company fields through Rust public/admin structs, SQL SELECT/INSERT/UPDATE, multipart parsing, object-storage upload/delete cleanup, signed `companyLogoUrl`, and publish validation.
-5. #166 depends on #164/#165 types: extend `AdminPost`/form Pick in `lib/admin/cms-api.ts` and add a Company card in `post-editor-form.tsx` with text, URL, logo upload, and remove-logo controls.
-6. #167 depends on #165: extend `ApiPost`/`RustPost` in `lib/api/rust-blog.ts` and replace the hardcoded article company/about card in `app/(public)/blog/[slug]/page.tsx` with a prop-driven `CompanyCard`.
-7. #168 depends on #164-#167: update Rust/admin/frontend unit tests for validation, editor multipart preservation, content visibility defaults, and public rendering expectations.
+Dependencies between issues
+1. Issue #176 is the data-source fix and should be done first.
+   - The homepage cannot correctly distinguish empty vs. populated archive if GET /api/posts is broken.
+   - Ensure list and detail endpoints have aligned SELECT columns and serialization before changing frontend error behavior.
+2. Issue #177 depends on #176's endpoint contract.
+   - Once /api/posts reliably returns a non-empty list for published rows, frontend code can treat non-OK/throwing fetches as operational failures and a 200 with [] as the genuine empty archive state.
 
-Key design decisions:
-- Treat company logo exactly like existing cover/avatar storage: persist only a relative `companyLogoKey`, prepend `OBJECT_STORAGE_PREFIX` inside the Rust storage wrapper, expose public reads through `/api/image/*key`, and clean up replaced/removed/deleted objects.
-- Keep defaults backward-compatible: existing posts render `myClawTeam`, blank intro until edited, no logo unless present, and `https://myclawteam.ai` as website URL.
-- Published post validation should require enough company data for a complete public card (`companyName` and `companyIntro` per issue #168) while drafts may remain incomplete.
-- Keep public/admin type boundaries explicit: Rust API JSON uses camelCase; Next helpers normalize dates only and should not invent storage URLs client-side.
-- Preserve admin auth/session behavior and existing upload limits; new company logo multipart fields should reuse existing image type/size validation paths.
+Key design decisions
+- Keep backend list/detail queries DRY by continuing to share a single PUBLISHED_POST_SELECT projection in rust-backend/src/posts/mod.rs.
+- Avoid silently converting Rust API failures into empty blog content. lib/api/rust-blog.ts should distinguish:
+  - success with posts: render hero/grid,
+  - success with zero posts: render the seeded-empty/archive-empty state,
+  - request/network/non-OK/invalid JSON failure: log status/body and either throw or return a discriminated failure for the homepage to render a distinct error state.
+- Preserve existing public post shape and company/image URL fallbacks so article pages and homepage cards stay compatible.
+- Prefer small focused tests around the changed contract: /api/posts includes all required company fields, and homepage/API adapter no longer conflates API failure with empty content.
