@@ -74,6 +74,32 @@ export type RustPostListResponse = {
   posts: RustPost[];
 };
 
+export class RustApiRequestError extends Error {
+  readonly body?: string;
+  readonly path: string;
+  readonly status?: number;
+
+  constructor({
+    body,
+    cause,
+    message,
+    path,
+    status,
+  }: {
+    body?: string;
+    cause?: unknown;
+    message: string;
+    path: string;
+    status?: number;
+  }) {
+    super(message, { cause });
+    this.name = "RustApiRequestError";
+    this.body = body;
+    this.path = path;
+    this.status = status;
+  }
+}
+
 function apiBaseUrl() {
   return (process.env.RUST_API_BASE_URL || getSelfUrl()).replace(/\/$/, "");
 }
@@ -101,7 +127,22 @@ function normalizePost(post: ApiPost): RustPost {
   };
 }
 
-async function fetchRustApi<T>(path: string): Promise<T | null> {
+async function readResponseBody(response: Response) {
+  try {
+    return await response.text();
+  } catch (error) {
+    return `Unable to read response body: ${String(error)}`;
+  }
+}
+
+type FetchRustApiOptions = {
+  nullOnNotFound?: boolean;
+};
+
+async function fetchRustApi<T>(
+  path: string,
+  { nullOnNotFound = true }: FetchRustApiOptions = {},
+): Promise<T | null> {
   let response: Response;
 
   try {
@@ -112,30 +153,50 @@ async function fetchRustApi<T>(path: string): Promise<T | null> {
       next: { revalidate: PUBLIC_REVALIDATE_SECONDS },
     });
   } catch (error) {
-    console.error(`Rust API request failed before response: ${path}`, error);
-    return null;
+    console.error("Rust API request failed before response", { error, path });
+    throw new RustApiRequestError({
+      cause: error,
+      message: `Rust API request failed before response: ${path}`,
+      path,
+    });
   }
 
-  if (response.status === 404) {
+  if (response.status === 404 && nullOnNotFound) {
     return null;
   }
 
   if (!response.ok) {
-    console.error(`Rust API request failed: ${path} returned ${response.status}`);
-    return null;
+    const body = await readResponseBody(response);
+    console.error("Rust API request failed", { body, path, status: response.status });
+    throw new RustApiRequestError({
+      body,
+      message: `Rust API request failed: ${path} returned ${response.status}`,
+      path,
+      status: response.status,
+    });
   }
 
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch (error) {
+    console.error("Rust API response JSON parse failed", { error, path });
+    throw new RustApiRequestError({
+      cause: error,
+      message: `Rust API response JSON parse failed: ${path}`,
+      path,
+      status: response.status,
+    });
+  }
 }
 
 export async function getRustPostList(): Promise<RustPostListResponse> {
-  const data = await fetchRustApi<ApiPostListResponse>("/api/posts");
+  const data = await fetchRustApi<ApiPostListResponse>("/api/posts", { nullOnNotFound: false });
 
   if (!data) {
-    return {
-      heroPost: null,
-      posts: [],
-    };
+    throw new RustApiRequestError({
+      message: "Rust API posts endpoint returned no data.",
+      path: "/api/posts",
+    });
   }
 
   return {
