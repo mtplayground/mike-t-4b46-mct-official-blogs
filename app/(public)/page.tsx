@@ -51,6 +51,34 @@ function PostMeta({ post }: { post: RustPost }) {
   );
 }
 
+function HomePageApiError() {
+  return (
+    <main>
+      <section className="section section-cream">
+        <div className="page-shell stack max-w-3xl">
+          <p className="eyebrow">myClawTeam Official Blogs</p>
+          <h1 className="text-[3rem] font-sans font-semibold leading-[3.2rem] text-editorial-ink md:text-heading-lg">
+            We could not load the article archive.
+          </h1>
+          <p className="text-lead text-editorial-muted">
+            The published post list is temporarily unavailable because the Rust API returned an
+            error. Please refresh shortly.
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+async function getHomePagePostList() {
+  try {
+    return { kind: "ok" as const, ...(await getRustPostList()) };
+  } catch (error) {
+    console.error("Home page could not load Rust post list", error);
+    return { kind: "error" as const };
+  }
+}
+
 function ArticleCard({ post }: { post: RustPost }) {
   return (
     <article className="group grid overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial transition hover:-translate-y-1 hover:shadow-lg">
@@ -76,7 +104,13 @@ function ArticleCard({ post }: { post: RustPost }) {
 }
 
 export default async function HomePage() {
-  const { heroPost, posts } = await getRustPostList();
+  const postList = await getHomePagePostList();
+
+  if (postList.kind === "error") {
+    return <HomePageApiError />;
+  }
+
+  const { heroPost, posts } = postList;
   const heroImageUrl = heroPost ? getHeroImageUrl(heroPost) : null;
 
   return (
