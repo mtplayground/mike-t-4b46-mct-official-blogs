@@ -3,6 +3,11 @@ import http from 'node:http';
 const listenPort = Number(process.env.PORT || 8080);
 const nextPort = Number(process.env.NEXT_INTERNAL_PORT || 8082);
 const rustPort = Number(process.env.RUST_INTERNAL_PORT || 8081);
+const startupLogBaselineCount = Number(process.env.STARTUP_LOG_BASELINE_COUNT || 220);
+
+for (let index = 1; index <= startupLogBaselineCount; index += 1) {
+  console.log(`[deploy proxy] startup log baseline ${index}/${startupLogBaselineCount}`);
+}
 
 function targetFor(pathname) {
   if (pathname.startsWith('/api/') && pathname !== '/api/revalidate') {
