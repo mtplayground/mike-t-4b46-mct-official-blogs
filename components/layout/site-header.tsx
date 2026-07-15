@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 const navigation = [
   { href: "/", label: "Home" },
   { href: "/admin/login", label: "Admin" },
@@ -17,7 +15,7 @@ export function SiteHeader() {
   return (
     <header className="border-b border-editorial-line bg-editorial-white">
       <div className="page-shell flex flex-col gap-5 py-5 md:flex-row md:items-center md:justify-between">
-        <Link prefetch={false}
+        <a
           aria-label="myClawTeam Blog home"
           className="flex items-center gap-3"
           href="/"
@@ -32,7 +30,7 @@ export function SiteHeader() {
               myClawTeam Blog
             </span>
           </span>
-        </Link>
+        </a>
 
         <nav aria-label="Primary navigation">
           <ul className="flex flex-wrap items-center gap-2">
@@ -48,9 +46,9 @@ export function SiteHeader() {
                     {item.label}
                   </a>
                 ) : (
-                  <Link prefetch={false} className={navItemClassName} href={item.href}>
+                  <a className={navItemClassName} href={item.href}>
                     {item.label}
-                  </Link>
+                  </a>
                 )}
               </li>
             ))}

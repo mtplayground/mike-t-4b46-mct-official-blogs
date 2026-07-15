@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { getRustPostList, type RustPost } from "@/lib/api/rust-blog";
 import { coverMediaFrameClassName, coverMediaImageClassName } from "@/lib/content/cover-media";
 import { buildPageMetadata } from "@/lib/metadata";
@@ -82,7 +80,7 @@ async function getHomePagePostList() {
 function ArticleCard({ post }: { post: RustPost }) {
   return (
     <article className="group grid overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial transition hover:-translate-y-1 hover:shadow-lg">
-      <Link prefetch={false} className="grid h-full" href={`/blog/${post.slug}`}>
+      <a className="grid h-full" href={`/blog/${post.slug}`}>
         <figure className={coverMediaFrameClassName}>
           <PostImage alt="" src={post.coverImageUrl} />
         </figure>
@@ -98,7 +96,7 @@ function ArticleCard({ post }: { post: RustPost }) {
             Read article
           </span>
         </div>
-      </Link>
+      </a>
     </article>
   );
 }
@@ -126,16 +124,14 @@ export default async function HomePage() {
                   {heroPost.title}
                 </h1>
                 <p className="text-lead text-editorial-muted">{heroPost.excerpt}</p>
-                <Link
-                  prefetch={false}
+                <a
                   className="editorial-button w-fit"
                   href={`/blog/${heroPost.slug}`}
                 >
                   Read article
-                </Link>
+                </a>
               </div>
-              <Link
-                prefetch={false}
+              <a
                 aria-label={`Read ${heroPost.title}`}
                 className="group overflow-hidden rounded-card border border-editorial-line bg-editorial-white shadow-editorial"
                 href={`/blog/${heroPost.slug}`}
@@ -143,7 +139,7 @@ export default async function HomePage() {
                 <figure className="aspect-square overflow-hidden bg-editorial-cream">
                   <PostImage alt="" src={heroImageUrl} />
                 </figure>
-              </Link>
+              </a>
             </>
           ) : (
             <div className="stack max-w-3xl lg:col-span-2">

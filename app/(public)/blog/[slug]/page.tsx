@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -304,13 +303,12 @@ export default async function PostPage({ params }: PostPageProps) {
       <article>
         <section className="section section-cream">
           <div className="page-shell grid gap-10">
-            <Link
-              prefetch={false}
+            <a
               className="w-fit text-sm font-bold text-editorial-muted underline decoration-editorial-red decoration-2 underline-offset-8 transition hover:text-editorial-red"
               href="/"
             >
               Back to articles
-            </Link>
+            </a>
             <div className="grid gap-6">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-editorial-muted">
                 <span className="font-bold uppercase text-editorial-red">{post.category.name}</span>

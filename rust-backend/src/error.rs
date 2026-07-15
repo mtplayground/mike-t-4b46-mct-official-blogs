@@ -42,10 +42,22 @@ impl IntoResponse for AppError {
                 | AppError::Unauthorized(_)
         );
 
+        let (status, message) = match &self {
+            AppError::BadRequest(message) => (StatusCode::BAD_REQUEST, *message),
+            AppError::PayloadTooLarge(message) => (StatusCode::PAYLOAD_TOO_LARGE, *message),
+            AppError::NotFound(message) => (StatusCode::NOT_FOUND, *message),
+            AppError::Unauthorized(message) => (StatusCode::UNAUTHORIZED, *message),
+            AppError::PublicInternal(message) => (StatusCode::INTERNAL_SERVER_ERROR, *message),
+            AppError::Config(_)
+            | AppError::Database(_)
+            | AppError::Io(_)
+            | AppError::Storage(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+        };
+
         if is_client_error {
-            tracing::warn!(error = ?self, "request rejected");
+            tracing::warn!(error = ?self, status = status.as_u16(), "request rejected");
         } else {
-            tracing::error!(error = ?self, "request failed");
+            tracing::error!(error = ?self, status = status.as_u16(), "request failed");
         }
 
         let (status, message) = match self {
