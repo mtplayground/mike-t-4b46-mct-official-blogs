@@ -88,7 +88,7 @@ pub struct PublicPost {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PostListResponse {
     pub hero_post: Option<PublicPost>,
@@ -128,19 +128,37 @@ const PUBLISHED_POST_SELECT: &str = r#"
 "#;
 
 pub async fn list_posts(State(state): State<AppState>) -> Result<Json<PostListResponse>, AppError> {
-    let rows = sqlx::query_as::<_, PostRow>(&format!(
-        "{} ORDER BY p.is_featured DESC, p.published_at DESC, p.created_at DESC",
-        PUBLISHED_POST_SELECT
-    ))
-    .fetch_all(&state.pool)
-    .await?;
-    Ok(Json(post_list_response_from_rows(rows, &state.storage)?))
+    Ok(Json(fetch_public_post_list(&state).await?))
 }
 
 pub async fn get_post(
     State(state): State<AppState>,
     Path(slug): Path<String>,
 ) -> Result<Json<PublicPost>, AppError> {
+    let post = fetch_public_post_by_slug(&state, &slug)
+        .await?
+        .ok_or(AppError::NotFound("Post not found."))?;
+
+    Ok(Json(post))
+}
+
+pub(crate) async fn fetch_public_post_list(
+    state: &AppState,
+) -> Result<PostListResponse, AppError> {
+    let rows = sqlx::query_as::<_, PostRow>(&format!(
+        "{} ORDER BY p.is_featured DESC, p.published_at DESC, p.created_at DESC",
+        PUBLISHED_POST_SELECT
+    ))
+    .fetch_all(&state.pool)
+    .await?;
+
+    post_list_response_from_rows(rows, &state.storage)
+}
+
+pub(crate) async fn fetch_public_post_by_slug(
+    state: &AppState,
+    slug: &str,
+) -> Result<Option<PublicPost>, AppError> {
     let row = sqlx::query_as::<_, PostRow>(&format!(
         "{} AND p.slug = $1 ORDER BY p.published_at DESC LIMIT 1",
         PUBLISHED_POST_SELECT
@@ -148,9 +166,8 @@ pub async fn get_post(
     .bind(slug)
     .fetch_optional(&state.pool)
     .await?;
-    let post = row.ok_or(AppError::NotFound("Post not found."))?;
 
-    Ok(Json(post.into_public_post(&state.storage)?))
+    row.map(|post| post.into_public_post(&state.storage)).transpose()
 }
 
 fn post_list_response_from_rows(

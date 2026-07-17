@@ -5,7 +5,7 @@
       <p class="eyebrow">{{ category_name }}</p>
       <h1 class="text-heading-lg">{{ title }}</h1>
       <p class="text-lead text-editorial-muted">{{ excerpt }}</p>
-      <p class="text-sm font-bold text-editorial-muted">By {{ author_name }} · {{ published_at_label }}</p>
+      <p class="text-sm font-bold text-editorial-muted">By {{ author_name }} · {{ published_at_label }} · {{ views }} views</p>
     </header>
     {% if has_cover_image %}
       <img class="aspect-[16/9] w-full rounded-card object-cover shadow-editorial" src="{{ cover_image_url }}" alt="">
@@ -13,5 +13,30 @@
     <div class="prose max-w-none text-editorial-ink">
       {{ body_html|safe }}
     </div>
+    <aside class="grid gap-6 md:grid-cols-2" aria-label="Article attribution">
+      <section class="rounded-card border border-editorial-line bg-editorial-cream p-6">
+        <p class="eyebrow">Author</p>
+        <div class="mt-4 flex items-start gap-4">
+          {% if has_author_avatar %}
+            <img class="h-14 w-14 rounded-full object-cover" src="{{ author_avatar_url }}" alt="">
+          {% endif %}
+          <div class="grid gap-2">
+            <h2 class="text-heading-sm">{{ author_name }}</h2>
+            <p class="text-editorial-muted">{{ author_intro }}</p>
+          </div>
+        </div>
+      </section>
+      <section class="rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial">
+        <p class="eyebrow">Company</p>
+        <div class="mt-4 flex items-start gap-4">
+          <img class="h-14 w-14 rounded-card object-contain" src="{{ company_logo_url }}" alt="">
+          <div class="grid gap-2">
+            <h2 class="text-heading-sm">{{ company_name }}</h2>
+            <p class="text-editorial-muted">{{ company_intro }}</p>
+            <a class="text-sm font-bold text-editorial-red" href="{{ company_website_url }}">Visit website</a>
+          </div>
+        </div>
+      </section>
+    </aside>
   </div>
 </article>
