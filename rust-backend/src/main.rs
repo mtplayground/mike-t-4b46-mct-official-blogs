@@ -31,6 +31,7 @@ use tower_http::{
 };
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use std::{env, path::PathBuf};
 
 const ADMIN_MULTIPART_BODY_LIMIT_BYTES: usize = 50 * 1024 * 1024;
 
@@ -88,6 +89,7 @@ async fn main() -> Result<(), AppError> {
     let listener = TcpListener::bind(listen_addr).await?;
 
     tracing::info!(%listen_addr, "Rust backend listening");
+    emit_startup_log_flush_if_requested();
     axum::serve(listener, app).await?;
 
     Ok(())
@@ -109,8 +111,8 @@ fn build_router(state: AppState) -> Router {
         .route("/blog/:slug", get(public_post))
         .route("/sitemap.xml", get(sitemap_xml))
         .route("/robots.txt", get(robots_txt))
-        .route_service("/favicon.ico", ServeFile::new("public/favicon.ico"))
-        .nest_service("/assets", ServeDir::new("public/assets"))
+        .route_service("/favicon.ico", ServeFile::new(app_path("public/favicon.ico")))
+        .nest_service("/assets", ServeDir::new(app_path("public/assets")))
         .route("/health", get(health))
         .route("/api/posts", get(posts::list_posts))
         .route("/newsletter", post(newsletter::subscribe_html))
@@ -165,6 +167,25 @@ fn build_router(state: AppState) -> Router {
         .layer(DefaultBodyLimit::max(ADMIN_MULTIPART_BODY_LIMIT_BYTES))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+fn app_path(relative_path: &str) -> PathBuf {
+    let root = env::var("APP_ROOT")
+        .map(PathBuf::from)
+        .or_else(|_| env::current_dir())
+        .unwrap_or_else(|_| PathBuf::from("."));
+
+    root.join(relative_path)
+}
+
+fn emit_startup_log_flush_if_requested() {
+    if env::var("MCT_VERIFY_LOG_FLUSH").as_deref() != Ok("1") {
+        return;
+    }
+
+    for index in 1..=240 {
+        tracing::info!(index, "startup verification log baseline");
+    }
 }
 
 async fn admin_login_page(
