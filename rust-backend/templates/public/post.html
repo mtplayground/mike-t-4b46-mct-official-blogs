@@ -10,9 +10,7 @@
     {% if has_cover_image %}
       <img class="aspect-[16/9] w-full rounded-card object-cover shadow-editorial" src="{{ cover_image_url }}" alt="">
     {% endif %}
-    <div class="prose max-w-none text-editorial-ink">
-      {{ body_html|safe }}
-    </div>
+    {{ body_html|safe }}
     <aside class="grid gap-6 md:grid-cols-2" aria-label="Article attribution">
       <section class="rounded-card border border-editorial-line bg-editorial-cream p-6">
         <p class="eyebrow">Author</p>
