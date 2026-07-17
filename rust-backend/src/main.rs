@@ -31,7 +31,13 @@ use tower_http::{
 };
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use std::{env, path::PathBuf};
+use std::{
+    env,
+    io::{self, Write},
+    path::PathBuf,
+    thread,
+    time::Duration,
+};
 
 const ADMIN_MULTIPART_BODY_LIMIT_BYTES: usize = 50 * 1024 * 1024;
 
@@ -184,7 +190,9 @@ fn emit_startup_log_flush_if_requested() {
     }
 
     for index in 1..=240 {
-        tracing::info!(index, "startup verification log baseline");
+        println!("startup verification log baseline index={index}");
+        let _ = io::stdout().flush();
+        thread::sleep(Duration::from_millis(5));
     }
 }
 
