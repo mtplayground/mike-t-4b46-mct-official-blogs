@@ -3,12 +3,8 @@ use thiserror::Error;
 use crate::config::RevalidationConfig;
 
 #[derive(Debug, Error)]
-pub enum RevalidationError {
-    #[error("failed to send revalidation request: {0}")]
-    Request(#[from] reqwest::Error),
-    #[error("revalidation route returned HTTP {status}: {body}")]
-    Status { status: reqwest::StatusCode, body: String },
-}
+#[error("public revalidation is disabled because Axum renders pages directly")]
+pub struct RevalidationError;
 
 pub async fn trigger_public_revalidation<I, S>(
     _config: &RevalidationConfig,
