@@ -13,6 +13,7 @@ mod views;
 
 use axum::{
     extract::{DefaultBodyLimit, Path, State},
+    http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Json, Router,
@@ -90,6 +91,8 @@ fn build_router(state: AppState) -> Router {
         .route("/", get(public_home))
         .route("/blog", get(public_blog_redirect))
         .route("/blog/:slug", get(public_post))
+        .route("/sitemap.xml", get(sitemap_xml))
+        .route("/robots.txt", get(robots_txt))
         .nest_service("/assets", ServeDir::new("public/assets"))
         .route("/health", get(health))
         .route("/api/posts", get(posts::list_posts))
@@ -138,11 +141,7 @@ fn build_router(state: AppState) -> Router {
 async fn public_home(State(state): State<AppState>) -> Result<Html<String>, AppError> {
     let response = posts::fetch_public_post_list(&state).await?;
     let context = html::public::HomePageContext {
-        seo: html::seo::SeoMetadata::with_canonical_url(
-            "myClawTeam Blog",
-            "Practical notes on shipping software with AI-assisted teams.",
-            public_url(&state.self_url, "/"),
-        ),
+        seo: html::seo::SeoMetadata::home(&state.self_url),
         heading: "Official Blog".to_owned(),
         intro: "Practical notes on shipping software with AI-assisted teams.".to_owned(),
         hero_post: response.hero_post.as_ref().map(post_card_context_from_post),
@@ -162,11 +161,7 @@ async fn public_post(
 ) -> Result<Response, AppError> {
     let Some(post) = posts::fetch_public_post_by_slug(&state, &slug).await? else {
         let context = html::public::NotFoundPageContext {
-            seo: html::seo::SeoMetadata::with_canonical_url(
-                "Post not found",
-                "The requested article could not be found.",
-                public_url(&state.self_url, &format!("/blog/{slug}")),
-            ),
+            seo: html::seo::SeoMetadata::not_found(&state.self_url, &format!("/blog/{slug}")),
             heading: "Article not found".to_owned(),
             message: "The article may have moved, been unpublished, or never existed.".to_owned(),
         };
@@ -178,9 +173,9 @@ async fn public_post(
     let body_html = html::markdown::render_markdown_to_html(&post.body, &state.storage).into_inner();
     let title = post.title.clone();
     let context = html::public::PostPageContext {
-        seo: html::seo::SeoMetadata::with_canonical_url(
-            title.clone(),
-            post.excerpt.clone(),
+        seo: html::seo::SeoMetadata::article(
+            &state.self_url,
+            &post,
             public_url(&state.self_url, &format!("/blog/{}", post.slug)),
         ),
         title,
@@ -203,6 +198,19 @@ async fn public_post(
     };
 
     Ok(Html(html::public::render_post_page(context)?).into_response())
+}
+
+async fn sitemap_xml(State(state): State<AppState>) -> Result<Response, AppError> {
+    let response = posts::fetch_public_post_list(&state).await?;
+    let body = html::seo::render_sitemap_xml(&state.self_url, &response.posts);
+
+    Ok(([(header::CONTENT_TYPE, "application/xml; charset=utf-8")], body).into_response())
+}
+
+async fn robots_txt(State(state): State<AppState>) -> Response {
+    let body = html::seo::render_robots_txt(&state.self_url);
+
+    ([(header::CONTENT_TYPE, "text/plain; charset=utf-8")], body).into_response()
 }
 
 fn post_card_context_from_post(post: &posts::PublicPost) -> html::public::PostCardContext {
