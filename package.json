@@ -1,25 +1,22 @@
 {
   "name": "mike-t-4b46-mct-official-blogs",
   "version": "1.0.0",
-  "description": "myClawTeam official blog built with Next.js App Router.",
+  "description": "myClawTeam official blog served by a Rust Axum backend with static Tailwind CSS.",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 8080",
-    "build": "npm run build:all",
-    "build:frontend": "next build --webpack",
-    "build:backend": "PATH=/usr/local/cargo/bin:$PATH cargo build --release --manifest-path rust-backend/Cargo.toml",
-    "build:all": "npm run build:css && npm run build:frontend && npm run build:backend",
-    "start": "next start -H 0.0.0.0 -p ${PORT:-8080}",
-    "lint": "eslint .",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "dev": "PATH=/usr/local/cargo/bin:$PATH cargo run --manifest-path rust-backend/Cargo.toml",
+    "build": "npm run build:css && npm run backend:build",
+    "start": "./scripts/start-sprite.sh",
+    "test": "node scripts/verify-no-next-runtime.mjs",
     "test:all": "npm run test && npm run backend:test",
     "e2e": "playwright test",
     "env:check": "tsx scripts/check-env.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "backend:dev": "PATH=/usr/local/cargo/bin:$PATH cargo run --manifest-path rust-backend/Cargo.toml",
-    "backend:build": "PATH=/usr/local/cargo/bin:$PATH cargo build --manifest-path rust-backend/Cargo.toml",
+    "backend:build": "PATH=/usr/local/cargo/bin:$PATH cargo build --release --manifest-path rust-backend/Cargo.toml",
     "backend:test": "PATH=/usr/local/cargo/bin:$PATH cargo test --manifest-path rust-backend/Cargo.toml",
+    "build:backend": "npm run backend:build",
     "build:css": "./scripts/build-css.sh"
   },
   "repository": {
@@ -36,21 +33,10 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "dependencies": {
-    "next": "^16.2.9",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
-  },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/node": "^25.9.3",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.0",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.9",
     "postcss": "^8.5.15",
     "prettier": "^3.8.4",
     "tailwindcss": "^3.4.17",

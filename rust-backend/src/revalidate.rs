@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-use std::time::Duration;
 use thiserror::Error;
 
 use crate::config::RevalidationConfig;
@@ -12,13 +10,8 @@ pub enum RevalidationError {
     Status { status: reqwest::StatusCode, body: String },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct RevalidationPayload {
-    slugs: Vec<String>,
-}
-
 pub async fn trigger_public_revalidation<I, S>(
-    config: &RevalidationConfig,
+    _config: &RevalidationConfig,
     slugs: I,
 ) -> Result<(), RevalidationError>
 where
@@ -26,22 +19,10 @@ where
     S: AsRef<str>,
 {
     let slugs = normalize_slugs(slugs);
-    let response = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()?
-        .post(&config.url)
-        .bearer_auth(&config.secret)
-        .json(&RevalidationPayload { slugs })
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-
-        return Err(RevalidationError::Status { status, body });
-    }
-
+    tracing::debug!(
+        ?slugs,
+        "skipping Next.js revalidation because Axum renders public pages directly"
+    );
     Ok(())
 }
 
@@ -73,9 +54,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{extract::State, http::HeaderMap, routing::post, Json, Router};
-    use std::sync::Arc;
-    use tokio::{net::TcpListener, sync::Mutex};
 
     #[test]
     fn normalize_slugs_deduplicates_and_rejects_invalid_values() {
@@ -92,66 +70,15 @@ mod tests {
         );
     }
 
-    #[derive(Clone, Default)]
-    struct Capture {
-        authorization: Arc<Mutex<Option<String>>>,
-        payload: Arc<Mutex<Option<RevalidationPayload>>>,
-    }
-
-    async fn capture_revalidation(
-        State(capture): State<Capture>,
-        headers: HeaderMap,
-        Json(payload): Json<RevalidationPayload>,
-    ) -> &'static str {
-        *capture.authorization.lock().await = headers
-            .get("authorization")
-            .and_then(|value| value.to_str().ok())
-            .map(ToOwned::to_owned);
-        *capture.payload.lock().await = Some(payload);
-
-        "ok"
-    }
-
     #[tokio::test]
-    async fn trigger_posts_slugs_with_shared_secret() {
-        let capture = Capture::default();
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("test listener should bind");
-        let address = listener
-            .local_addr()
-            .expect("test listener address should be available");
-        let app = Router::new()
-            .route("/api/revalidate", post(capture_revalidation))
-            .with_state(capture.clone());
-        let server = tokio::spawn(async move {
-            axum::serve(listener, app)
-                .await
-                .expect("test revalidation server should run");
-        });
+    async fn trigger_skips_external_revalidation_when_axum_serves_pages_directly() {
         let config = RevalidationConfig {
-            url: format!("http://{address}/api/revalidate"),
+            url: "https://example.com/api/revalidate".to_owned(),
             secret: "shared-secret".to_owned(),
         };
 
-        trigger_public_revalidation(&config, ["first-post", "first-post", "second-post"])
+        trigger_public_revalidation(&config, ["first-post", "second-post"])
             .await
-            .expect("trigger should post to the revalidation route");
-
-        assert_eq!(
-            capture.authorization.lock().await.as_deref(),
-            Some("Bearer shared-secret")
-        );
-        assert_eq!(
-            capture
-                .payload
-                .lock()
-                .await
-                .as_ref()
-                .map(|payload| payload.slugs.clone()),
-            Some(vec!["first-post".to_owned(), "second-post".to_owned()])
-        );
-
-        server.abort();
+            .expect("direct Axum rendering should not require external revalidation");
     }
 }

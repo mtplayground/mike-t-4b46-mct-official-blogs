@@ -4,9 +4,6 @@ const config: Config = {
   content: [
     "./rust-backend/templates/**/*.html",
     "./rust-backend/src/**/*.rs",
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./lib/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {
