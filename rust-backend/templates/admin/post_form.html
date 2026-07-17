@@ -1,0 +1,43 @@
+<section class="section section-white">
+  <div class="page-shell grid gap-8">
+    <div class="stack">
+      <p class="eyebrow">Admin</p>
+      <h1 class="text-heading-md">{{ title }}</h1>
+      <p class="text-editorial-muted">All required public fields must be complete before publishing.</p>
+    </div>
+    {% if has_notice %}<p class="rounded-card border border-editorial-red/30 bg-editorial-red/10 p-4 text-sm font-bold text-editorial-red" role="alert">{{ notice }}</p>{% endif %}
+    <form class="grid gap-6" action="{{ action }}" method="post" enctype="multipart/form-data">
+      {% if is_edit %}<input type="hidden" name="postId" value="{{ post_id }}">{% endif %}
+      <section class="grid gap-4 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial">
+        <h2 class="text-heading-sm">Post content</h2>
+        <label class="grid gap-2 text-sm font-bold" for="post-title">Title<input class="min-h-12 rounded-card border border-editorial-line px-4 font-normal" id="post-title" name="title" required value="{{ post_title }}"></label>
+        <label class="grid gap-2 text-sm font-bold" for="post-excerpt">Excerpt<textarea class="min-h-24 rounded-card border border-editorial-line p-4 font-normal" id="post-excerpt" name="excerpt" maxlength="320" required>{{ excerpt }}</textarea></label>
+        <label class="grid gap-2 text-sm font-bold" for="post-body">Markdown body<textarea class="min-h-80 rounded-card border border-editorial-line p-4 font-mono text-sm font-normal" id="post-body" name="body" required>{{ body }}</textarea></label>
+        <label class="grid gap-2 text-sm font-bold" for="post-category">Category<select class="min-h-12 rounded-card border border-editorial-line px-4 font-normal" id="post-category" name="categoryId" required>{% for category in categories %}<option value="{{ category.id }}" {% if category.is_selected %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></label>
+        <label class="flex items-center gap-3 text-sm font-bold"><input name="isFeatured" type="checkbox" value="yes" {% if is_featured %}checked{% endif %}> Featured post</label>
+        <label class="grid gap-2 text-sm font-bold" for="post-status">Status<select class="min-h-12 rounded-card border border-editorial-line px-4 font-normal" id="post-status" name="status"><option value="DRAFT" {% if is_published %}{% else %}selected{% endif %}>Draft</option><option value="PUBLISHED" {% if is_published %}selected{% endif %}>Published</option></select></label>
+      </section>
+      <section class="grid gap-4 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial">
+        <h2 class="text-heading-sm">Author and company</h2>
+        <label class="grid gap-2 text-sm font-bold" for="author-name">Author name<input class="min-h-12 rounded-card border border-editorial-line px-4 font-normal" id="author-name" name="authorName" value="{{ author_name }}"></label>
+        <label class="grid gap-2 text-sm font-bold" for="author-intro">Author intro<textarea class="min-h-24 rounded-card border border-editorial-line p-4 font-normal" id="author-intro" name="authorIntro" maxlength="500">{{ author_intro }}</textarea></label>
+        <label class="grid gap-2 text-sm font-bold" for="company-name">Company name<input class="min-h-12 rounded-card border border-editorial-line px-4 font-normal" id="company-name" name="companyName" value="{{ company_name }}"></label>
+        <label class="grid gap-2 text-sm font-bold" for="company-intro">Company intro<textarea class="min-h-24 rounded-card border border-editorial-line p-4 font-normal" id="company-intro" name="companyIntro" maxlength="500">{{ company_intro }}</textarea></label>
+        <label class="grid gap-2 text-sm font-bold" for="company-url">Company website URL<input class="min-h-12 rounded-card border border-editorial-line px-4 font-normal" id="company-url" name="companyWebsiteUrl" value="{{ company_website_url }}"></label>
+      </section>
+      <section class="grid gap-4 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial">
+        <h2 class="text-heading-sm">Images</h2>
+        <label class="grid gap-2 text-sm font-bold">16:9 cover image {% if has_cover_image %}<span class="font-normal text-editorial-muted">Current image saved.</span>{% endif %}<input name="coverImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        {% if has_cover_image %}<label class="flex items-center gap-3 text-sm"><input name="removeCover" type="checkbox" value="yes"> Remove cover image</label>{% endif %}
+        <label class="grid gap-2 text-sm font-bold">1:1 cover image {% if has_square_cover_image %}<span class="font-normal text-editorial-muted">Current image saved.</span>{% endif %}<input name="squareCoverImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        {% if has_square_cover_image %}<label class="flex items-center gap-3 text-sm"><input name="removeSquareCover" type="checkbox" value="yes"> Remove square cover image</label>{% endif %}
+        <label class="grid gap-2 text-sm font-bold">Author avatar {% if has_author_avatar %}<span class="font-normal text-editorial-muted">Current image saved.</span>{% endif %}<input name="authorAvatar" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        {% if has_author_avatar %}<label class="flex items-center gap-3 text-sm"><input name="removeAuthorAvatar" type="checkbox" value="yes"> Remove author avatar</label>{% endif %}
+        <label class="grid gap-2 text-sm font-bold">Company logo {% if has_company_logo %}<span class="font-normal text-editorial-muted">Current image saved.</span>{% endif %}<input name="companyLogo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        {% if has_company_logo %}<label class="flex items-center gap-3 text-sm"><input name="removeCompanyLogo" type="checkbox" value="yes"> Remove company logo</label>{% endif %}
+        <label class="grid gap-2 text-sm font-bold">Inline image<input name="inlineImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+      </section>
+      <div class="flex flex-wrap gap-3"><button class="editorial-button" type="submit">{{ submit_label }}</button><a class="rounded-button border border-editorial-line px-4 py-2 text-sm font-bold" href="/admin">Cancel</a></div>
+    </form>
+  </div>
+</section>

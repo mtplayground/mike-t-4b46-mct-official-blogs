@@ -118,9 +118,19 @@ use crate::{auth, error::AppError, AppState};
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct AdminSubscriber {
-    pub id: String,
-    pub email: String,
-    pub created_at: NaiveDateTime,
+    pub(crate) id: String,
+    pub(crate) email: String,
+    pub(crate) created_at: NaiveDateTime,
+}
+
+pub(crate) async fn fetch_admin_subscribers(
+    state: &AppState,
+) -> Result<Vec<AdminSubscriber>, AppError> {
+    Ok(sqlx::query_as::<_, AdminSubscriber>(
+        "SELECT id, email, created_at FROM subscribers ORDER BY created_at DESC",
+    )
+    .fetch_all(&state.pool)
+    .await?)
 }
 
 pub async fn list_admin_subscribers(
@@ -129,11 +139,5 @@ pub async fn list_admin_subscribers(
 ) -> Result<Json<Vec<AdminSubscriber>>, AppError> {
     auth::ensure_admin_headers(&state, &headers)?;
 
-    let subscribers = sqlx::query_as::<_, AdminSubscriber>(
-        "SELECT id, email, created_at FROM subscribers ORDER BY created_at DESC",
-    )
-    .fetch_all(&state.pool)
-    .await?;
-
-    Ok(Json(subscribers))
+    Ok(Json(fetch_admin_subscribers(&state).await?))
 }

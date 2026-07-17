@@ -1,0 +1,24 @@
+<section class="section section-cream">
+  <div class="page-shell grid max-w-lg gap-6">
+    <div class="stack">
+      <p class="eyebrow">Admin</p>
+      <h1 class="text-heading-md">Sign in</h1>
+      <p class="text-editorial-muted">Use the configured admin credentials to manage posts.</p>
+    </div>
+    {% if has_error %}
+      <p class="rounded-card border border-editorial-red/30 bg-editorial-red/10 p-4 text-sm font-bold text-editorial-red" role="alert">Invalid admin credentials.</p>
+    {% endif %}
+    <form class="grid gap-4 rounded-card border border-editorial-line bg-editorial-white p-6 shadow-editorial" action="/admin/login" method="post">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label class="grid gap-2 text-sm font-bold text-editorial-ink" for="admin-username">
+        Username
+        <input class="min-h-12 rounded-card border border-editorial-line px-4 text-sm font-normal outline-none focus:border-editorial-red focus:ring-2 focus:ring-editorial-red" id="admin-username" name="username" autocomplete="username" required>
+      </label>
+      <label class="grid gap-2 text-sm font-bold text-editorial-ink" for="admin-password">
+        Password
+        <input class="min-h-12 rounded-card border border-editorial-line px-4 text-sm font-normal outline-none focus:border-editorial-red focus:ring-2 focus:ring-editorial-red" id="admin-password" name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="editorial-button" type="submit">Sign in</button>
+    </form>
+  </div>
+</section>

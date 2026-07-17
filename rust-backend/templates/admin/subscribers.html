@@ -1,0 +1,19 @@
+<section class="section section-white">
+  <div class="page-shell grid gap-8">
+    <div class="stack">
+      <p class="eyebrow">Admin</p>
+      <h1 class="text-heading-md">Subscribers</h1>
+      <p class="text-editorial-muted">Newsletter signups collected from the public site.</p>
+    </div>
+    {% if has_subscribers %}
+      <div class="overflow-x-auto rounded-card border border-editorial-line bg-editorial-white shadow-editorial">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-editorial-cream text-editorial-ink"><tr><th class="p-4">Email</th><th class="p-4">Created</th></tr></thead>
+          <tbody>{% for subscriber in subscribers %}<tr class="border-t border-editorial-line"><td class="p-4">{{ subscriber.email }}</td><td class="p-4 text-editorial-muted">{{ subscriber.created_at_label }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="rounded-card border border-editorial-line bg-editorial-cream p-6 text-editorial-muted">No subscribers yet.</p>
+    {% endif %}
+  </div>
+</section>
