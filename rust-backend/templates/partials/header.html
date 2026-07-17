@@ -1,0 +1,10 @@
+<header class="border-b border-editorial-line bg-editorial-white">
+  <div class="page-shell flex items-center justify-between py-5">
+    <a class="text-sm font-bold uppercase tracking-[0.08em] text-editorial-ink" href="/">myClawTeam Blog</a>
+    <nav class="flex items-center gap-5 text-sm font-bold text-editorial-muted" aria-label="Primary navigation">
+      {% for link in nav_links %}
+        <a class="transition hover:text-editorial-red" href="{{ link.href }}">{{ link.label }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+</header>

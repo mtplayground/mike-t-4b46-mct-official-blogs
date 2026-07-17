@@ -2,6 +2,7 @@ mod auth;
 mod config;
 mod db;
 mod error;
+mod html;
 mod models;
 mod newsletter;
 mod posts;

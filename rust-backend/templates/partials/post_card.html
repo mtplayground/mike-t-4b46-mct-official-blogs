@@ -1,0 +1,11 @@
+<article class="rounded-card border border-editorial-line bg-editorial-white shadow-editorial">
+  {% if let Some(cover_image_url) = post.cover_image_url %}
+    <img class="aspect-[16/9] w-full rounded-t-card object-cover" src="{{ cover_image_url }}" alt="">
+  {% endif %}
+  <div class="grid gap-4 p-6">
+    <p class="eyebrow">{{ post.category_name }}</p>
+    <h2 class="text-heading-sm"><a href="/blog/{{ post.slug }}">{{ post.title }}</a></h2>
+    <p class="text-lead text-editorial-muted">{{ post.excerpt }}</p>
+    <p class="text-sm font-bold text-editorial-muted">{{ post.published_at_label }}</p>
+  </div>
+</article>

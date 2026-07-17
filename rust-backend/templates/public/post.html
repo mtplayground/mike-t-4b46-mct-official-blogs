@@ -1,0 +1,17 @@
+<article class="section section-white">
+  <div class="page-shell grid max-w-3xl gap-8">
+    <a class="text-sm font-bold text-editorial-red" href="/">← Back to all articles</a>
+    <header class="grid gap-5">
+      <p class="eyebrow">{{ category_name }}</p>
+      <h1 class="text-heading-lg">{{ title }}</h1>
+      <p class="text-lead text-editorial-muted">{{ excerpt }}</p>
+      <p class="text-sm font-bold text-editorial-muted">By {{ author_name }} · {{ published_at_label }}</p>
+    </header>
+    {% if has_cover_image %}
+      <img class="aspect-[16/9] w-full rounded-card object-cover shadow-editorial" src="{{ cover_image_url }}" alt="">
+    {% endif %}
+    <div class="prose max-w-none text-editorial-ink">
+      {{ body_html|safe }}
+    </div>
+  </div>
+</article>
