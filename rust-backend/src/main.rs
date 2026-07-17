@@ -175,8 +175,7 @@ async fn public_post(
         return Ok((axum::http::StatusCode::NOT_FOUND, Html(html)).into_response());
     };
 
-    let markdown_html = html::markdown::markdown_to_untrusted_html(&post.body);
-    let body_html = html::markdown::sanitize_html_fragment(&markdown_html).into_inner();
+    let body_html = html::markdown::render_markdown_to_html(&post.body, &state.storage).into_inner();
     let title = post.title.clone();
     let context = html::public::PostPageContext {
         seo: html::seo::SeoMetadata::with_canonical_url(
