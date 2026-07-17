@@ -32,8 +32,15 @@ pub(crate) struct PostPageContext {
     pub(crate) category_name: String,
     pub(crate) published_at_label: String,
     pub(crate) author_name: String,
+    pub(crate) author_intro: String,
+    pub(crate) author_avatar_url: Option<String>,
     pub(crate) body_html: String,
     pub(crate) cover_image_url: Option<String>,
+    pub(crate) company_name: String,
+    pub(crate) company_intro: String,
+    pub(crate) company_logo_url: String,
+    pub(crate) company_website_url: String,
+    pub(crate) views: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,9 +69,17 @@ struct PostTemplate {
     category_name: String,
     published_at_label: String,
     author_name: String,
+    author_intro: String,
+    has_author_avatar: bool,
+    author_avatar_url: String,
     body_html: String,
     has_cover_image: bool,
     cover_image_url: String,
+    company_name: String,
+    company_intro: String,
+    company_logo_url: String,
+    company_website_url: String,
+    views: i32,
 }
 
 #[derive(Template)]
@@ -91,15 +106,24 @@ pub(crate) fn render_home_page(context: HomePageContext) -> Result<String, askam
 
 pub(crate) fn render_post_page(context: PostPageContext) -> Result<String, askama::Error> {
     let cover_image_url = context.cover_image_url.unwrap_or_default();
+    let author_avatar_url = context.author_avatar_url.unwrap_or_default();
     let body = PostTemplate {
         title: context.title,
         excerpt: context.excerpt,
         category_name: context.category_name,
         published_at_label: context.published_at_label,
         author_name: context.author_name,
+        author_intro: context.author_intro,
+        has_author_avatar: !author_avatar_url.is_empty(),
+        author_avatar_url,
         body_html: context.body_html,
         has_cover_image: !cover_image_url.is_empty(),
         cover_image_url,
+        company_name: context.company_name,
+        company_intro: context.company_intro,
+        company_logo_url: context.company_logo_url,
+        company_website_url: context.company_website_url,
+        views: context.views,
     }
     .render()?;
 

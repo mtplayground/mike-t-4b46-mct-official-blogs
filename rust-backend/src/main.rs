@@ -12,17 +12,19 @@ mod subscribers;
 mod views;
 
 use axum::{
-    extract::{DefaultBodyLimit, State},
+    extract::{DefaultBodyLimit, Path, State},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Json, Router,
 };
+use chrono::Datelike;
 use config::{AdminCredentials, AppConfig, RevalidationConfig};
 use db::DbPool;
 use error::AppError;
 use serde::Serialize;
 use storage::StorageClient;
+use tower_http::{services::ServeDir, trace::TraceLayer};
 use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 const ADMIN_MULTIPART_BODY_LIMIT_BYTES: usize = 50 * 1024 * 1024;
@@ -85,6 +87,10 @@ fn init_tracing() {
 
 fn build_router(state: AppState) -> Router {
     Router::new()
+        .route("/", get(public_home))
+        .route("/blog", get(public_blog_redirect))
+        .route("/blog/:slug", get(public_post))
+        .nest_service("/assets", ServeDir::new("public/assets"))
         .route("/health", get(health))
         .route("/api/posts", get(posts::list_posts))
         .route("/api/newsletter", post(newsletter::subscribe))
@@ -129,6 +135,123 @@ fn build_router(state: AppState) -> Router {
         .with_state(state)
 }
 
+async fn public_home(State(state): State<AppState>) -> Result<Html<String>, AppError> {
+    let response = posts::fetch_public_post_list(&state).await?;
+    let context = html::public::HomePageContext {
+        seo: html::seo::SeoMetadata::with_canonical_url(
+            "myClawTeam Blog",
+            "Practical notes on shipping software with AI-assisted teams.",
+            public_url(&state.self_url, "/"),
+        ),
+        heading: "Official Blog".to_owned(),
+        intro: "Practical notes on shipping software with AI-assisted teams.".to_owned(),
+        hero_post: response.hero_post.as_ref().map(post_card_context_from_post),
+        posts: response.posts.iter().map(post_card_context_from_post).collect(),
+    };
+
+    Ok(Html(html::public::render_home_page(context)?))
+}
+
+async fn public_blog_redirect() -> Redirect {
+    Redirect::temporary("/")
+}
+
+async fn public_post(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+) -> Result<Response, AppError> {
+    let Some(post) = posts::fetch_public_post_by_slug(&state, &slug).await? else {
+        let context = html::public::NotFoundPageContext {
+            seo: html::seo::SeoMetadata::with_canonical_url(
+                "Post not found",
+                "The requested article could not be found.",
+                public_url(&state.self_url, &format!("/blog/{slug}")),
+            ),
+            heading: "Article not found".to_owned(),
+            message: "The article may have moved, been unpublished, or never existed.".to_owned(),
+        };
+        let html = html::public::render_not_found_page(context)?;
+
+        return Ok((axum::http::StatusCode::NOT_FOUND, Html(html)).into_response());
+    };
+
+    let markdown_html = html::markdown::markdown_to_untrusted_html(&post.body);
+    let body_html = html::markdown::sanitize_html_fragment(&markdown_html).into_inner();
+    let title = post.title.clone();
+    let context = html::public::PostPageContext {
+        seo: html::seo::SeoMetadata::with_canonical_url(
+            title.clone(),
+            post.excerpt.clone(),
+            public_url(&state.self_url, &format!("/blog/{}", post.slug)),
+        ),
+        title,
+        excerpt: post.excerpt.clone(),
+        category_name: post.category.name.clone(),
+        published_at_label: post
+            .published_at
+            .map(format_date)
+            .unwrap_or_else(|| "Draft".to_owned()),
+        author_name: post.author_name.clone(),
+        author_intro: post.author_intro.clone(),
+        author_avatar_url: post.author_avatar_url.clone(),
+        body_html,
+        cover_image_url: post.cover_image_url.clone(),
+        company_name: post.company_name.clone(),
+        company_intro: post.company_intro.clone(),
+        company_logo_url: post.company_logo_url.clone(),
+        company_website_url: post.company_website_url.clone(),
+        views: post.views,
+    };
+
+    Ok(Html(html::public::render_post_page(context)?).into_response())
+}
+
+fn post_card_context_from_post(post: &posts::PublicPost) -> html::public::PostCardContext {
+    html::public::PostCardContext {
+        title: post.title.clone(),
+        slug: post.slug.clone(),
+        excerpt: post.excerpt.clone(),
+        category_name: post.category.name.clone(),
+        published_at_label: post.published_at.map(format_date).unwrap_or_default(),
+        cover_image_url: post
+            .square_cover_image_url
+            .clone()
+            .or_else(|| post.cover_image_url.clone()),
+    }
+}
+
+fn public_url(base_url: &str, path: &str) -> String {
+    format!("{}{}", base_url.trim_end_matches('/'), path)
+}
+
+fn format_date(value: chrono::NaiveDateTime) -> String {
+    let date = value.date();
+    format!(
+        "{} {}, {}",
+        month_name(date.month()),
+        date.day(),
+        date.year()
+    )
+}
+
+fn month_name(month: u32) -> &'static str {
+    match month {
+        1 => "January",
+        2 => "February",
+        3 => "March",
+        4 => "April",
+        5 => "May",
+        6 => "June",
+        7 => "July",
+        8 => "August",
+        9 => "September",
+        10 => "October",
+        11 => "November",
+        12 => "December",
+        _ => "Unknown",
+    }
+}
+
 async fn health(State(state): State<AppState>) -> Result<Json<HealthResponse<'static>>, AppError> {
     let _pool = state.pool.clone();
 
@@ -145,8 +268,24 @@ mod tests {
         routing::post,
         Router,
     };
+    use chrono::NaiveDateTime;
     use sqlx::Row;
     use tower::ServiceExt;
+
+    #[test]
+    fn public_html_helpers_build_canonical_urls_and_dates() {
+        let published_at = NaiveDateTime::parse_from_str(
+            "2026-07-17 13:45:00",
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("valid test datetime");
+
+        assert_eq!(
+            public_url("https://example.test/", "/blog/post"),
+            "https://example.test/blog/post"
+        );
+        assert_eq!(format_date(published_at), "July 17, 2026");
+    }
 
     fn multipart_body(boundary: &str, fields: &[(&str, &str)]) -> String {
         let mut body = String::new();

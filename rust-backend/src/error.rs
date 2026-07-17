@@ -25,6 +25,8 @@ pub enum AppError {
     Database(#[from] sqlx::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Template(#[from] askama::Error),
 }
 
 #[derive(Serialize)]
@@ -42,7 +44,7 @@ impl IntoResponse for AppError {
                 | AppError::Unauthorized(_)
         );
 
-        let (status, message) = match &self {
+        let (status, _message) = match &self {
             AppError::BadRequest(message) => (StatusCode::BAD_REQUEST, *message),
             AppError::PayloadTooLarge(message) => (StatusCode::PAYLOAD_TOO_LARGE, *message),
             AppError::NotFound(message) => (StatusCode::NOT_FOUND, *message),
@@ -51,7 +53,8 @@ impl IntoResponse for AppError {
             AppError::Config(_)
             | AppError::Database(_)
             | AppError::Io(_)
-            | AppError::Storage(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+            | AppError::Storage(_)
+            | AppError::Template(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
         };
 
         if is_client_error {
@@ -69,7 +72,8 @@ impl IntoResponse for AppError {
             AppError::Config(_)
             | AppError::Database(_)
             | AppError::Io(_)
-            | AppError::Storage(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+            | AppError::Storage(_)
+            | AppError::Template(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
         };
 
         (status, Json(ErrorBody { message })).into_response()

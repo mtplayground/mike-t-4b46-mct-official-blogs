@@ -38,6 +38,41 @@ mod tests {
         assert!(html.contains(r#"href="/blog/from-vibe-coding-to-vibe-shipping""#));
     }
 
+
+    #[test]
+    fn public_post_page_renders_author_and_company_cards() {
+        let page = public::PostPageContext {
+            seo: SeoMetadata::with_canonical_url(
+                "Article title",
+                "Article excerpt.",
+                "https://example.test/blog/article-title",
+            ),
+            title: "Article title".to_owned(),
+            excerpt: "Article excerpt.".to_owned(),
+            category_name: "Engineering".to_owned(),
+            published_at_label: "July 17, 2026".to_owned(),
+            author_name: "Alex Writer".to_owned(),
+            author_intro: "Writes about shipping reliable software.".to_owned(),
+            author_avatar_url: Some("/assets/author.png".to_owned()),
+            body_html: "<p>Rendered body</p>".to_owned(),
+            cover_image_url: Some("/assets/cover.png".to_owned()),
+            company_name: "Acme Labs".to_owned(),
+            company_intro: "Builds tools for teams.".to_owned(),
+            company_logo_url: "/assets/company.png".to_owned(),
+            company_website_url: "https://example.test/company".to_owned(),
+            views: 42,
+        };
+
+        let html = public::render_post_page(page).expect("post page should render");
+
+        assert!(html.contains("Author"));
+        assert!(html.contains("Alex Writer"));
+        assert!(html.contains("Company"));
+        assert!(html.contains("Acme Labs"));
+        assert!(html.contains("42 views"));
+        assert!(html.contains("<p>Rendered body</p>"));
+    }
+
     #[test]
     fn markdown_helpers_escape_and_sanitize_html() {
         let escaped = markdown::escape_text("<script>alert('x')</script>");
