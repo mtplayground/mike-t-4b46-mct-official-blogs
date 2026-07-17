@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    min-height: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    margin: 0;
+    @apply bg-editorial-white font-sans text-editorial-ink antialiased;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  main {
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply m-0 font-sans font-semibold text-editorial-ink;
+  }
+
+  p {
+    @apply m-0;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-[min(1120px,calc(100%_-_32px))];
+  }
+
+  .stack {
+    @apply grid gap-6;
+  }
+
+  .section {
+    @apply py-20;
+  }
+
+  .section-cream {
+    @apply bg-editorial-cream;
+  }
+
+  .section-white {
+    @apply bg-editorial-white;
+  }
+
+  .eyebrow {
+    @apply text-eyebrow font-bold uppercase text-editorial-red;
+  }
+
+  .muted {
+    @apply text-editorial-muted;
+  }
+
+  .editorial-button {
+    @apply inline-flex w-fit items-center justify-center rounded-button bg-editorial-red px-6 py-3 text-sm font-bold text-editorial-white shadow-editorial transition hover:bg-[#C83A24] focus:outline-none focus:ring-2 focus:ring-editorial-red focus:ring-offset-2;
+  }
+
+  .feature-card {
+    @apply rounded-card bg-editorial-dark-card p-6 text-editorial-white shadow-editorial;
+  }
+
+  .feature-card-muted {
+    @apply text-editorial-dark-card-muted;
+  }
+}
