@@ -8,7 +8,7 @@
     "build": "npm run build:all",
     "build:frontend": "next build --webpack",
     "build:backend": "PATH=/usr/local/cargo/bin:$PATH cargo build --release --manifest-path rust-backend/Cargo.toml",
-    "build:all": "npm run build:frontend && npm run build:backend",
+    "build:all": "npm run build:css && npm run build:frontend && npm run build:backend",
     "start": "next start -H 0.0.0.0 -p ${PORT:-8080}",
     "lint": "eslint .",
     "test": "node --import tsx --test tests/*.test.ts",
@@ -19,7 +19,8 @@
     "format:write": "prettier --write .",
     "backend:dev": "PATH=/usr/local/cargo/bin:$PATH cargo run --manifest-path rust-backend/Cargo.toml",
     "backend:build": "PATH=/usr/local/cargo/bin:$PATH cargo build --manifest-path rust-backend/Cargo.toml",
-    "backend:test": "PATH=/usr/local/cargo/bin:$PATH cargo test --manifest-path rust-backend/Cargo.toml"
+    "backend:test": "PATH=/usr/local/cargo/bin:$PATH cargo test --manifest-path rust-backend/Cargo.toml",
+    "build:css": "./scripts/build-css.sh"
   },
   "repository": {
     "type": "git",

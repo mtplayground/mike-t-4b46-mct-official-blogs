@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const sansOnlyFiles = [
+  "assets/styles/input.css",
   "app/globals.css",
   "app/(public)/page.tsx",
   "app/(public)/blog/[slug]/page.tsx",
@@ -19,7 +20,7 @@ test("Tailwind exposes only the editorial sans font family token", async () => {
 });
 
 test("global typography defaults headings and body copy to sans", async () => {
-  const source = await readFile("app/globals.css", "utf8");
+  const source = await readFile("assets/styles/input.css", "utf8");
 
   assert.match(source, /@apply bg-editorial-white font-sans text-editorial-ink antialiased;/);
   assert.match(source, /@apply m-0 font-sans font-semibold text-editorial-ink;/);
