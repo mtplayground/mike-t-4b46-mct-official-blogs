@@ -1,31 +1,53 @@
-Architecture plan for issues #176 and #177
+Architecture plan for issues #180-#188
 
-Project structure and relevant modules
-- Frontend: Next.js App Router pages live under app/.
-  - app/(public)/page.tsx is the homepage that calls getRustPostList() and decides whether to render the hero/article grid, an empty archive state, or an API error state.
-  - app/(public)/error.tsx and root error boundaries can be reused if the API client throws instead of returning a value.
-- Frontend API adapter: lib/api/rust-blog.ts owns server-side fetches from the Next app to the Rust API.
-  - This module should expose typed success and failure behavior for list/detail fetches.
-  - Shared normalization for Rust API post payloads stays here so pages do not duplicate date/company fallback logic.
-- Backend API: rust-backend/src/posts/mod.rs owns public post list/detail endpoints.
-  - GET /api/posts should use the same published-post projection as GET /api/posts/:slug, including company_name, company_intro, company_logo_key, and company_website_url.
-  - Public response structs (PostRow, PublicPost, PostListResponse, CategorySummary) remain the shared Rust types for list/detail serialization.
-- Tests:
-  - Existing TypeScript tests under tests/ can cover frontend API failure semantics and homepage rendering branches.
-  - Rust/backend tests should focus on query shape and row mapping where practical without requiring a live database.
+Goal
+- Migrate the public blog and admin flows from a Next.js + React frontend behind a Rust API proxy to a single Axum server that renders complete HTML, serves static CSS/assets, keeps the existing Postgres data model, and preserves object-storage-backed media behavior.
 
-Dependencies between issues
-1. Issue #176 is the data-source fix and should be done first.
-   - The homepage cannot correctly distinguish empty vs. populated archive if GET /api/posts is broken.
-   - Ensure list and detail endpoints have aligned SELECT columns and serialization before changing frontend error behavior.
-2. Issue #177 depends on #176's endpoint contract.
-   - Once /api/posts reliably returns a non-empty list for published rows, frontend code can treat non-OK/throwing fetches as operational failures and a 200 with [] as the genuine empty archive state.
+Target module structure
+- `assets/styles/input.css`
+  - Tailwind source for editorial tokens/components currently in `app/globals.css`.
+  - Compiled by a standalone Tailwind CLI step into `public/assets/app.css`.
+- `public/assets/`
+  - Static CSS output and any non-user-uploaded public assets served by Axum through `tower_http::services::ServeDir`.
+- `rust-backend/src/html/`
+  - `mod.rs`: public exports and shared rendering helpers.
+  - `layout.rs`: global layout context, navigation/footer data, flash/notice support, asset URL helpers.
+  - `public.rs`: homepage, article, archive redirect/not-found view models and render entrypoints.
+  - `admin.rs`: login, dashboard, post form/list, subscriber views and form error/notice contexts.
+  - `markdown.rs`: Markdown-to-sanitized-HTML rendering, including storage-reference signing/rewrite integration.
+  - `seo.rs`: page metadata, canonical URL generation, Open Graph/Twitter fields, JSON-LD builders, sitemap/robots helpers.
+- `rust-backend/templates/`
+  - `layout.html`, `partials/{header,footer,post_card}.html`, `public/{home,post,not_found}.html`, and admin templates added with issue #186.
+  - Templates should link `/assets/app.css` and avoid JS requirements for core content or forms.
+- Existing Rust modules remain the data/mutation boundary:
+  - `posts`: list/detail/admin mutations, published visibility, view incrementing, media upload paths.
+  - `storage`: Tigris/S3 key prefixing, signed image URLs, multipart upload support.
+  - `auth`: admin credential verification/session cookies.
+  - `newsletter` or equivalent handler module if split from `main.rs` during issue #185.
+
+Shared types and boundaries
+- Keep database DTOs in Rust, not templates. Route handlers should map DB rows into small template context structs before rendering.
+- SEO data should be derived from the same post context used by `public::PostPage`, so titles/descriptions/canonical and JSON-LD cannot drift from visible content.
+- Markdown rendering should return sanitized HTML/newtype-safe content consumed by Askama templates; do not expose raw unsanitized Markdown directly to templates.
+- Storage references should continue flowing through the existing signing/proxy helpers before Markdown sanitization so `storage:` images render in server HTML without exposing raw object keys.
+- Admin form handlers should reuse existing auth and mutation functions, returning redirects plus notices instead of duplicating business logic.
+
+Issue dependency order
+1. #180 Static CSS build: unblock server-rendered templates by producing `public/assets/app.css` without requiring Next/PostCSS at runtime.
+2. #181 Rendering foundation: add Askama/layout/template modules and shared context conventions.
+3. #182 Public Axum pages: wire `/`, `/blog`, `/blog/:slug`, 404 HTML, and `/assets` serving using existing published-post queries.
+4. #183 Markdown rendering: replace React Markdown with Rust-side `pulldown-cmark` + `ammonia` + storage image signing for article content.
+5. #184 SEO/sitemap/robots: depends on public HTML rendering and post contexts; replace Next sitemap/robots with Axum routes.
+6. #185 Newsletter/views HTML-first: add no-JS form POST/redirect behavior and server-side view incrementing.
+7. #186 Admin HTML forms: convert authenticated admin workflows after layout/form patterns are established; keep JSON endpoints only where needed for compatibility.
+8. #187 Remove Next.js runtime: only after public/admin parity and tests are in place enough to validate Axum-only behavior; delete React/Next/proxy code and make the Rust binary the service entrypoint.
+9. #188 Test suite/E2E: add/adjust tests throughout, then finalize coverage after the runtime migration.
 
 Key design decisions
-- Keep backend list/detail queries DRY by continuing to share a single PUBLISHED_POST_SELECT projection in rust-backend/src/posts/mod.rs.
-- Avoid silently converting Rust API failures into empty blog content. lib/api/rust-blog.ts should distinguish:
-  - success with posts: render hero/grid,
-  - success with zero posts: render the seeded-empty/archive-empty state,
-  - request/network/non-OK/invalid JSON failure: log status/body and either throw or return a discriminated failure for the homepage to render a distinct error state.
-- Preserve existing public post shape and company/image URL fallbacks so article pages and homepage cards stay compatible.
-- Prefer small focused tests around the changed contract: /api/posts includes all required company fields, and homepage/API adapter no longer conflates API failure with empty content.
+- Axum is the final web server for both HTML and API/form routes; avoid adding another frontend runtime once migration starts.
+- Prefer progressive enhancement: homepage, article pages, newsletter signup, and admin CRUD must work through normal HTML requests and redirects without client JavaScript.
+- Public origin/canonical URLs must be proxy-aware: use `X-Forwarded-Host` and `X-Forwarded-Proto` when deriving canonical, Open Graph, sitemap, redirects, or same-origin checks.
+- Keep object-storage safety intact: all uploaded media keys must retain the configured storage prefix and multipart upload code must keep concrete content length handling.
+- Use Askama compile-time templates for most HTML. Keep template contexts explicit and small to make tests straightforward.
+- Remove Next.js only in #187, after Axum routes, CSS, templates, admin, SEO, and no-JS forms are functionally equivalent.
+- Tests should exercise rendered HTML, auth redirects, configured/default login behavior, sitemap visibility, Markdown sanitization, newsletter redirects, and multipart storage invariants.
