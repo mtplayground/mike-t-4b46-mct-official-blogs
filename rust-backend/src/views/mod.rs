@@ -4,7 +4,7 @@ use axum::{
 };
 use serde::Serialize;
 
-use crate::{error::AppError, AppState};
+use crate::{db::DbPool, error::AppError, AppState};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,13 +47,23 @@ pub async fn increment_views(
     State(state): State<AppState>,
     Path(slug): Path<String>,
 ) -> Result<Json<ViewsResponse>, AppError> {
-    let row = sqlx::query_as::<_, (i32,)>(INCREMENT_VIEWS_SQL)
-        .bind(slug)
-        .fetch_optional(&state.pool)
-        .await?;
-    let (views,) = row.ok_or(AppError::NotFound("Post not found."))?;
+    let views = increment_post_views_by_slug(&state.pool, &slug)
+        .await?
+        .ok_or(AppError::NotFound("Post not found."))?;
 
     Ok(Json(ViewsResponse { views }))
+}
+
+pub(crate) async fn increment_post_views_by_slug(
+    pool: &DbPool,
+    slug: &str,
+) -> Result<Option<i32>, sqlx::Error> {
+    let row = sqlx::query_as::<_, (i32,)>(INCREMENT_VIEWS_SQL)
+        .bind(slug)
+        .fetch_optional(pool)
+        .await?;
+
+    Ok(row.map(|(views,)| views))
 }
 
 #[cfg(test)]

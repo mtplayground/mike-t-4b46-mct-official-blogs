@@ -16,10 +16,33 @@ pub(crate) struct PostCardContext {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NewsletterNotice {
+    pub(crate) message: String,
+    pub(crate) is_success: bool,
+}
+
+impl NewsletterNotice {
+    pub(crate) fn success(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            is_success: true,
+        }
+    }
+
+    pub(crate) fn error(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            is_success: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HomePageContext {
     pub(crate) seo: SeoMetadata,
     pub(crate) heading: String,
     pub(crate) intro: String,
+    pub(crate) newsletter_notice: Option<NewsletterNotice>,
     pub(crate) hero_post: Option<PostCardContext>,
     pub(crate) posts: Vec<PostCardContext>,
 }
@@ -55,6 +78,9 @@ pub(crate) struct NotFoundPageContext {
 struct HomeTemplate {
     heading: String,
     intro: String,
+    has_newsletter_notice: bool,
+    newsletter_notice_message: String,
+    newsletter_notice_is_success: bool,
     has_hero_post: bool,
     hero_posts: Vec<PostCardContext>,
     has_posts: bool,
@@ -91,9 +117,21 @@ struct NotFoundTemplate {
 
 pub(crate) fn render_home_page(context: HomePageContext) -> Result<String, askama::Error> {
     let hero_posts = context.hero_post.clone().into_iter().collect::<Vec<_>>();
+    let newsletter_notice = context.newsletter_notice;
+    let newsletter_notice_message = newsletter_notice
+        .as_ref()
+        .map(|notice| notice.message.clone())
+        .unwrap_or_default();
+    let newsletter_notice_is_success = newsletter_notice
+        .as_ref()
+        .map(|notice| notice.is_success)
+        .unwrap_or(false);
     let body = HomeTemplate {
         heading: context.heading,
         intro: context.intro,
+        has_newsletter_notice: newsletter_notice.is_some(),
+        newsletter_notice_message,
+        newsletter_notice_is_success,
         has_hero_post: context.hero_post.is_some(),
         hero_posts,
         has_posts: !context.posts.is_empty(),

@@ -1,6 +1,28 @@
 <footer class="border-t border-editorial-line bg-editorial-cream">
-  <div class="page-shell grid gap-3 py-10 text-sm text-editorial-muted">
-    <p class="font-bold text-editorial-ink">myClawTeam Blog</p>
-    <p>Practical notes on shipping software with AI-assisted teams.</p>
+  <div class="page-shell grid gap-8 py-10 text-sm text-editorial-muted md:grid-cols-[1fr_1fr] md:items-start">
+    <div class="grid gap-3">
+      <p class="font-bold text-editorial-ink">myClawTeam Blog</p>
+      <p>Practical notes on shipping software with AI-assisted teams.</p>
+    </div>
+    <form class="grid gap-3" action="/newsletter" method="post">
+      <div class="grid gap-2">
+        <label class="font-bold text-editorial-ink" for="footer-newsletter-email">Stay in the loop</label>
+        <p>Get new posts from myClawTeam Blog in your inbox.</p>
+      </div>
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <input
+          autocomplete="email"
+          class="min-h-12 flex-1 rounded-card border border-editorial-line bg-editorial-white px-4 text-sm text-editorial-ink outline-none transition placeholder:text-editorial-muted focus:border-editorial-red focus:ring-2 focus:ring-editorial-red"
+          id="footer-newsletter-email"
+          inputmode="email"
+          maxlength="320"
+          name="email"
+          placeholder="you@example.com"
+          required
+          type="email"
+        >
+        <button class="editorial-button" type="submit">Join newsletter</button>
+      </div>
+    </form>
   </div>
 </footer>

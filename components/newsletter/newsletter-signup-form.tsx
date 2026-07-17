@@ -78,7 +78,7 @@ export function NewsletterSignupForm() {
   }
 
   return (
-    <form className="grid gap-3" noValidate onSubmit={handleSubmit}>
+    <form action="/newsletter" className="grid gap-3" method="post" noValidate onSubmit={handleSubmit}>
       <label className="grid gap-2 text-sm font-bold text-editorial-white" htmlFor="footer-email">
         Email address
         <input
@@ -87,8 +87,10 @@ export function NewsletterSignupForm() {
           id="footer-email"
           inputMode="email"
           maxLength={320}
+          name="email"
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@example.com"
+          required
           type="email"
           value={email}
         />

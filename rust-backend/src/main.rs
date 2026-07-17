@@ -12,7 +12,7 @@ mod subscribers;
 mod views;
 
 use axum::{
-    extract::{DefaultBodyLimit, Path, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
@@ -22,7 +22,7 @@ use chrono::Datelike;
 use config::{AdminCredentials, AppConfig, RevalidationConfig};
 use db::DbPool;
 use error::AppError;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use storage::StorageClient;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use tokio::net::TcpListener;
@@ -42,6 +42,11 @@ pub(crate) struct AppState {
 #[derive(Serialize)]
 struct HealthResponse<'a> {
     status: &'a str,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct HomeQuery {
+    newsletter: Option<String>,
 }
 
 #[tokio::main]
@@ -96,6 +101,7 @@ fn build_router(state: AppState) -> Router {
         .nest_service("/assets", ServeDir::new("public/assets"))
         .route("/health", get(health))
         .route("/api/posts", get(posts::list_posts))
+        .route("/newsletter", post(newsletter::subscribe_html))
         .route("/api/newsletter", post(newsletter::subscribe))
         .route("/api/admin/login", post(auth::login))
         .route("/api/admin/logout", post(auth::logout))
@@ -138,12 +144,16 @@ fn build_router(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn public_home(State(state): State<AppState>) -> Result<Html<String>, AppError> {
+async fn public_home(
+    State(state): State<AppState>,
+    Query(query): Query<HomeQuery>,
+) -> Result<Html<String>, AppError> {
     let response = posts::fetch_public_post_list(&state).await?;
     let context = html::public::HomePageContext {
         seo: html::seo::SeoMetadata::home(&state.self_url),
         heading: "Official Blog".to_owned(),
         intro: "Practical notes on shipping software with AI-assisted teams.".to_owned(),
+        newsletter_notice: newsletter_notice_from_query(query.newsletter.as_deref()),
         hero_post: response.hero_post.as_ref().map(post_card_context_from_post),
         posts: response.posts.iter().map(post_card_context_from_post).collect(),
     };
@@ -171,6 +181,14 @@ async fn public_post(
     };
 
     let body_html = html::markdown::render_markdown_to_html(&post.body, &state.storage).into_inner();
+    let current_views = match views::increment_post_views_by_slug(&state.pool, &post.slug).await {
+        Ok(Some(views)) => views,
+        Ok(None) => post.views,
+        Err(error) => {
+            tracing::error!(error = ?error, slug = %post.slug, "failed to increment HTML article view");
+            post.views
+        }
+    };
     let title = post.title.clone();
     let context = html::public::PostPageContext {
         seo: html::seo::SeoMetadata::article(
@@ -194,7 +212,7 @@ async fn public_post(
         company_intro: post.company_intro.clone(),
         company_logo_url: post.company_logo_url.clone(),
         company_website_url: post.company_website_url.clone(),
-        views: post.views,
+        views: current_views,
     };
 
     Ok(Html(html::public::render_post_page(context)?).into_response())
@@ -211,6 +229,24 @@ async fn robots_txt(State(state): State<AppState>) -> Response {
     let body = html::seo::render_robots_txt(&state.self_url);
 
     ([(header::CONTENT_TYPE, "text/plain; charset=utf-8")], body).into_response()
+}
+
+fn newsletter_notice_from_query(value: Option<&str>) -> Option<html::public::NewsletterNotice> {
+    match value {
+        Some("subscribed") => Some(html::public::NewsletterNotice::success(
+            "You are on the list.",
+        )),
+        Some("duplicate") => Some(html::public::NewsletterNotice::error(
+            "That email is already subscribed.",
+        )),
+        Some("invalid") => Some(html::public::NewsletterNotice::error(
+            "Enter a valid email address.",
+        )),
+        Some("failed") => Some(html::public::NewsletterNotice::error(
+            "Newsletter signup failed. Try again soon.",
+        )),
+        _ => None,
+    }
 }
 
 fn post_card_context_from_post(post: &posts::PublicPost) -> html::public::PostCardContext {
