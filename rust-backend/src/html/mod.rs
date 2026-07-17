@@ -20,6 +20,7 @@ mod tests {
             ),
             heading: "Official Blog".to_owned(),
             intro: "Latest product and engineering updates.".to_owned(),
+            newsletter_notice: Some(public::NewsletterNotice::success("You are on the list.")),
             hero_post: None,
             posts: vec![public::PostCardContext {
                 title: "From Vibe Coding to Vibe Shipping".to_owned(),
@@ -34,6 +35,7 @@ mod tests {
         let html = public::render_home_page(page).expect("home page should render");
 
         assert!(html.contains(r#"<link rel="stylesheet" href="/assets/app.css">"#));
+        assert!(html.contains("You are on the list."));
         assert!(html.contains("From Vibe Coding to Vibe Shipping"));
         assert!(html.contains(r#"href="/blog/from-vibe-coding-to-vibe-shipping""#));
     }

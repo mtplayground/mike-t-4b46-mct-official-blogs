@@ -5,7 +5,11 @@ use uuid::Uuid;
 const EMAIL_MAX_LENGTH: usize = 320;
 
 pub fn normalize_subscriber_email(value: Option<&Value>) -> Option<String> {
-    let email = value.as_ref()?.as_str()?.trim().to_lowercase();
+    normalize_subscriber_email_text(value.as_ref()?.as_str()?)
+}
+
+pub fn normalize_subscriber_email_text(value: &str) -> Option<String> {
+    let email = value.trim().to_lowercase();
 
     if email.is_empty() || email.len() > EMAIL_MAX_LENGTH || email.chars().any(char::is_whitespace)
     {
@@ -60,13 +64,17 @@ pub fn is_unique_violation(error: &sqlx::Error) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize_subscriber_email;
+    use super::{normalize_subscriber_email, normalize_subscriber_email_text};
     use serde_json::json;
 
     #[test]
     fn normalize_subscriber_email_trims_and_lowercases() {
         assert_eq!(
             normalize_subscriber_email(Some(&json!("  Reader@Example.COM  "))),
+            Some("reader@example.com".to_string())
+        );
+        assert_eq!(
+            normalize_subscriber_email_text("  Reader@Example.COM  "),
             Some("reader@example.com".to_string())
         );
     }

@@ -3,6 +3,11 @@
     <p class="eyebrow">Official Blog</p>
     <h1 class="text-heading-lg">{{ heading }}</h1>
     <p class="max-w-2xl text-lead text-editorial-muted">{{ intro }}</p>
+    {% if has_newsletter_notice %}
+      <p class="rounded-card border p-4 text-sm font-bold {% if newsletter_notice_is_success %}border-green-200 bg-green-50 text-green-900{% else %}border-editorial-red/30 bg-editorial-red/10 text-editorial-red{% endif %}" role="status">
+        {{ newsletter_notice_message }}
+      </p>
+    {% endif %}
   </div>
 </section>
 {% if has_hero_post %}
