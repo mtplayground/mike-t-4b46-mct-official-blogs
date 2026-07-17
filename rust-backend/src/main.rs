@@ -547,7 +547,7 @@ async fn health(State(state): State<AppState>) -> Result<Json<HealthResponse<'st
 mod tests {
     use super::*;
     use axum::{
-        body::Body,
+        body::{to_bytes, Body},
         extract::Multipart,
         http::{header, Request, StatusCode},
         routing::post,
@@ -802,4 +802,366 @@ mod tests {
             .await
             .expect("test post should be cleaned up");
     }
+
+    async fn optional_db_state(test_name: &str) -> Option<AppState> {
+        let Ok(database_url) = std::env::var("DATABASE_URL") else {
+            eprintln!("DATABASE_URL is not set; skipping {test_name}");
+            return None;
+        };
+        let pool = db::connect(&database_url).expect("DATABASE_URL should be valid");
+        let db_ready = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            sqlx::query("SELECT 1").execute(&pool),
+        )
+        .await;
+        if !matches!(db_ready, Ok(Ok(_))) {
+            eprintln!("DATABASE_URL is not reachable; skipping {test_name}");
+            return None;
+        }
+
+        Some(AppState {
+            pool,
+            storage: StorageClient::for_tests("https://blog.example.com"),
+            admin: AdminCredentials {
+                username: "configured_admin".to_owned(),
+                password: "configured_secret".to_owned(),
+            },
+            revalidation: RevalidationConfig {
+                url: "http://127.0.0.1:1/api/revalidate".to_owned(),
+                secret: "test-secret".to_owned(),
+            },
+            self_url: "https://blog.example.com".to_owned(),
+        })
+    }
+
+    async fn response_text(response: Response) -> String {
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("response body should be readable");
+        String::from_utf8(bytes.to_vec()).expect("response body should be utf-8")
+    }
+
+    async fn cleanup_issue188_rows(pool: &DbPool, slug_prefix: &str, email_prefix: &str) {
+        sqlx::query("DELETE FROM posts WHERE slug LIKE $1")
+            .bind(format!("{slug_prefix}%"))
+            .execute(pool)
+            .await
+            .expect("test posts should be cleaned up");
+        sqlx::query("DELETE FROM subscribers WHERE email LIKE $1")
+            .bind(format!("{email_prefix}%"))
+            .execute(pool)
+            .await
+            .expect("test subscribers should be cleaned up");
+    }
+
+    async fn insert_issue188_post(
+        pool: &DbPool,
+        category_id: &str,
+        slug: &str,
+        title: &str,
+        body: &str,
+        published: bool,
+        featured: bool,
+    ) {
+        let status_sql = if published { "'PUBLISHED'::\"PostStatus\"" } else { "'DRAFT'::\"PostStatus\"" };
+        let published_at_sql = if published { "NOW()" } else { "NULL" };
+        let query = format!(
+            r#"
+            INSERT INTO posts (
+                id, title, slug, excerpt, body, cover_image_key, square_cover_image_key,
+                is_featured, views, author_name, author_intro, author_avatar_key,
+                company_name, company_intro, company_logo_key, company_website_url,
+                status, published_at, category_id, created_at, updated_at
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, 'post-images/2026/07/cover.png',
+                'post-images/2026/07/square.png', $6, 7, 'Test Author',
+                'Author intro for route tests.', 'post-images/2026/07/avatar.png',
+                'myClawTeam', 'Company intro for route tests.',
+                'post-images/2026/07/company.png', 'https://myclawteam.ai',
+                {status_sql}, {published_at_sql}, $7, NOW(), NOW()
+            )
+            "#,
+        );
+
+        sqlx::query(&query)
+            .bind(format!("issue188-post-{}", uuid::Uuid::new_v4()))
+            .bind(title)
+            .bind(slug)
+            .bind(format!("Excerpt for {title}"))
+            .bind(body)
+            .bind(featured)
+            .bind(category_id)
+            .execute(pool)
+            .await
+            .expect("issue #188 test post should be inserted");
+    }
+
+    #[tokio::test]
+    async fn homepage_renders_published_posts_and_hides_unpublished_posts() {
+        let Some(state) = optional_db_state("homepage route test").await else {
+            return;
+        };
+        let slug_prefix = format!("issue188-home-{}-", uuid::Uuid::new_v4());
+        let email_prefix = format!("issue188-home-{}", uuid::Uuid::new_v4());
+        cleanup_issue188_rows(&state.pool, &slug_prefix, &email_prefix).await;
+        let category_id = first_category_id(&state.pool)
+            .await
+            .expect("test category should exist");
+        let published_slug = format!("{slug_prefix}published");
+        let draft_slug = format!("{slug_prefix}draft");
+
+        insert_issue188_post(
+            &state.pool,
+            &category_id,
+            &published_slug,
+            "Issue 188 Published Homepage Post",
+            "Published homepage body.",
+            true,
+            true,
+        )
+        .await;
+        insert_issue188_post(
+            &state.pool,
+            &category_id,
+            &draft_slug,
+            "Issue 188 Draft Homepage Post",
+            "Draft homepage body.",
+            false,
+            false,
+        )
+        .await;
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/")
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_text(response).await;
+
+        assert!(body.contains("Issue 188 Published Homepage Post"));
+        assert!(body.contains(&format!("/blog/{published_slug}")));
+        assert!(!body.contains("Issue 188 Draft Homepage Post"));
+        assert!(!body.contains(&draft_slug));
+        cleanup_issue188_rows(&state.pool, &slug_prefix, &email_prefix).await;
+    }
+
+    #[tokio::test]
+    async fn article_page_renders_seo_metadata_and_sanitized_markdown() {
+        let Some(state) = optional_db_state("article metadata route test").await else {
+            return;
+        };
+        let slug_prefix = format!("issue188-article-{}-", uuid::Uuid::new_v4());
+        let email_prefix = format!("issue188-article-{}", uuid::Uuid::new_v4());
+        cleanup_issue188_rows(&state.pool, &slug_prefix, &email_prefix).await;
+        let category_id = first_category_id(&state.pool)
+            .await
+            .expect("test category should exist");
+        let slug = format!("{slug_prefix}published");
+        let unsafe_markdown = "# Safe Heading\n\n<script>alert('x')</script><p onclick=\"bad()\">Clean copy</p>";
+
+        insert_issue188_post(
+            &state.pool,
+            &category_id,
+            &slug,
+            "Issue 188 SEO Article",
+            unsafe_markdown,
+            true,
+            false,
+        )
+        .await;
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/blog/{slug}"))
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_text(response).await;
+
+        assert!(body.contains("<title>Issue 188 SEO Article</title>"));
+        assert!(body.contains("<meta name=\"description\" content=\"Excerpt for Issue 188 SEO Article\">"));
+        assert!(body.contains(&format!("<link rel=\"canonical\" href=\"https://blog.example.com/blog/{slug}\">")));
+        assert!(body.contains("<meta property=\"og:type\" content=\"article\">"));
+        assert!(body.contains("<meta property=\"article:published_time\""));
+        assert!(body.contains("\"@type\":\"Article\""));
+        assert!(body.contains("\"@type\":\"BreadcrumbList\""));
+        assert!(body.contains("article-prose"));
+        assert!(body.contains("<h1>Safe Heading</h1>"));
+        assert!(body.contains("<p>Clean copy</p>"));
+        assert!(!body.contains("<script"));
+        assert!(!body.contains("onclick"));
+        cleanup_issue188_rows(&state.pool, &slug_prefix, &email_prefix).await;
+    }
+
+    #[tokio::test]
+    async fn sitemap_lists_only_published_posts() {
+        let Some(state) = optional_db_state("sitemap route test").await else {
+            return;
+        };
+        let slug_prefix = format!("issue188-sitemap-{}-", uuid::Uuid::new_v4());
+        let email_prefix = format!("issue188-sitemap-{}", uuid::Uuid::new_v4());
+        cleanup_issue188_rows(&state.pool, &slug_prefix, &email_prefix).await;
+        let category_id = first_category_id(&state.pool)
+            .await
+            .expect("test category should exist");
+        let published_slug = format!("{slug_prefix}published");
+        let draft_slug = format!("{slug_prefix}draft");
+
+        insert_issue188_post(&state.pool, &category_id, &published_slug, "Issue 188 Sitemap Published", "Body", true, false).await;
+        insert_issue188_post(&state.pool, &category_id, &draft_slug, "Issue 188 Sitemap Draft", "Body", false, false).await;
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/sitemap.xml")
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_text(response).await;
+
+        assert!(body.contains("https://blog.example.com/</loc>"));
+        assert!(body.contains(&format!("https://blog.example.com/blog/{published_slug}")));
+        assert!(!body.contains(&draft_slug));
+        cleanup_issue188_rows(&state.pool, &slug_prefix, &email_prefix).await;
+    }
+
+    #[tokio::test]
+    async fn admin_html_auth_redirects_configured_login_works_and_default_credentials_fail() {
+        let Some(state) = optional_db_state("admin auth route test").await else {
+            return;
+        };
+        let app = build_router(state);
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/admin")
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            response.headers().get(header::LOCATION).and_then(|value| value.to_str().ok()),
+            Some("/admin/login?next=%2Fadmin")
+        );
+
+        let default_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/admin/login")
+                    .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .body(Body::from("username=admin&password=change-me&next=%2Fadmin"))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(default_response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            default_response.headers().get(header::LOCATION).and_then(|value| value.to_str().ok()),
+            Some("/admin/login?error=invalid")
+        );
+        assert!(default_response.headers().get(header::SET_COOKIE).is_none());
+
+        let configured_response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/admin/login")
+                    .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .body(Body::from("username=configured_admin&password=configured_secret&next=%2Fadmin"))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(configured_response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            configured_response.headers().get(header::LOCATION).and_then(|value| value.to_str().ok()),
+            Some("/admin")
+        );
+        assert!(configured_response
+            .headers()
+            .get(header::SET_COOKIE)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.contains(auth::ADMIN_SESSION_COOKIE)));
+    }
+
+    #[tokio::test]
+    async fn newsletter_html_form_redirects_for_created_duplicate_and_invalid_email() {
+        let Some(state) = optional_db_state("newsletter route test").await else {
+            return;
+        };
+        let slug_prefix = format!("issue188-newsletter-{}-", uuid::Uuid::new_v4());
+        let email_prefix = format!("issue188-newsletter-{}", uuid::Uuid::new_v4());
+        cleanup_issue188_rows(&state.pool, &slug_prefix, &email_prefix).await;
+        let app = build_router(state.clone());
+        let email = format!("{email_prefix}@example.com");
+
+        let created = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/newsletter")
+                    .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .body(Body::from(format!("email={email}")))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(created.status(), StatusCode::SEE_OTHER);
+        assert_eq!(created.headers().get(header::LOCATION).and_then(|value| value.to_str().ok()), Some("/?newsletter=subscribed"));
+
+        let duplicate = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/newsletter")
+                    .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .body(Body::from(format!("email={email}")))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(duplicate.status(), StatusCode::SEE_OTHER);
+        assert_eq!(duplicate.headers().get(header::LOCATION).and_then(|value| value.to_str().ok()), Some("/?newsletter=duplicate"));
+
+        let invalid = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/newsletter")
+                    .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .body(Body::from("email=not-an-email"))
+                    .expect("request should build"),
+            )
+            .await
+            .expect("router should respond");
+        assert_eq!(invalid.status(), StatusCode::SEE_OTHER);
+        assert_eq!(invalid.headers().get(header::LOCATION).and_then(|value| value.to_str().ok()), Some("/?newsletter=invalid"));
+        cleanup_issue188_rows(&state.pool, &slug_prefix, &email_prefix).await;
+    }
+
 }

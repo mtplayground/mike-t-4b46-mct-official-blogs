@@ -97,7 +97,7 @@ impl StorageClient {
         original_filename: Option<&str>,
     ) -> Result<(), AppError> {
         let full_key = self.full_object_key(relative_key)?;
-        let content_length = body.len() as i64;
+        let content_length = content_length_for_body(&body);
         let mut request = self
             .client
             .as_ref()
@@ -204,6 +204,10 @@ impl StorageClient {
     }
 }
 
+fn content_length_for_body(body: &[u8]) -> i64 {
+    body.len() as i64
+}
+
 pub async fn image_redirect(
     State(state): State<AppState>,
     Path(relative_key): Path<String>,
@@ -239,6 +243,13 @@ mod tests {
                 .unwrap(),
             "tenant-prefix/post-images/2026/06/a.png"
         );
+    }
+
+    #[test]
+    fn content_length_is_derived_from_buffered_body_bytes() {
+        let body = vec![0_u8; 12_345];
+
+        assert_eq!(content_length_for_body(&body), 12_345);
     }
 
     #[test]
