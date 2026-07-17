@@ -16,17 +16,17 @@ myClawTeam Blog is a production-ready editorial publishing app for official myCl
 - Admin dashboard lists draft and published posts, supports publish/unpublish/delete actions, and links to subscriber management.
 - Admin create/edit form supports title, slug, excerpt, category, featured flag, draft/publish status, cover image, author name/intro/avatar, Markdown body, and inline image uploads.
 - Published posts must have cover image and author fields; drafts may leave those incomplete. Multiple posts may be featured at once.
-- Browser favicon is provided by `app/favicon.ico`, derived from the myClawTeam brand mark.
-- Sitemap includes the homepage and published article detail URLs only, plus robots.txt and route loading/error/not-found boundaries.
+- Browser favicon and static assets are served by Axum from the committed public asset tree.
+- Sitemap includes the homepage and published article detail URLs only, plus robots.txt and server-rendered not-found responses.
 
 ## Architecture
 
-- Next.js App Router, React, TypeScript, and Tailwind CSS; App Router special files provide favicon, sitemap, and robots metadata.
-- Prisma ORM with PostgreSQL as the only persistent database.
+- Rust Axum, Askama templates, SQLx, PostgreSQL, and static Tailwind CSS; Axum serves public pages, admin forms, sitemap, robots.txt, and assets directly.
+- PostgreSQL is the only persistent database; schema migrations remain committed under `prisma/migrations`.
 - Private S3-compatible object storage via the vendor-neutral `OBJECT_STORAGE_*` env vars.
 - Uploaded cover, avatar, and inline post images are stored as relative object keys in PostgreSQL; S3 keys are always prefixed with `OBJECT_STORAGE_PREFIX`, and browser image URLs are generated with signed GET URLs at render time. Markdown bodies keep `![alt](storage:key)` references in storage and rewrite them to signed URLs server-side before rendering.
-- Public pages use ISR where appropriate; admin and API routes are dynamic.
-- Runtime env validation is centralized in `lib/env/server.ts` and exposed through `npm run env:check`.
+- Public pages are rendered server-side by Rust on each request; admin and API routes are handled by the same Axum server.
+- Runtime env validation is centralized in the Rust backend, with a small Node `npm run env:check` helper for deployment sanity checks.
 
 ## Key Conventions
 
@@ -35,10 +35,10 @@ myClawTeam Blog is a production-ready editorial publishing app for official myCl
 - Required env includes `SELF_URL`, `DATABASE_URL`, `JWT_SECRET`, and all `OBJECT_STORAGE_*` values in `.env.example`; `ADMIN_USERNAME` and `ADMIN_PASSWORD` are optional but must be supplied together if overridden.
 - Do not store uploaded files on local disk, in PostgreSQL blobs, or in public bucket URLs.
 - Admin auth is a first-party credential flow, not Google OAuth or a custom JWT layer; keep constant-time credential checks, whitespace-tolerant login comparisons, the `JWT_SECRET` fallback credential derivation, production login/logout redirects from `SELF_URL`, and public Admin navigation pointed at `/admin/login`.
-- Database schema, migrations, and seed data live under `prisma/`. Markdown preprocessing lives in `lib/content/markdown.ts`; it leaves failed image signatures unchanged rather than breaking the article page.
+- Database schema, migrations, and seed data live under `prisma/`. Markdown preprocessing lives in `rust-backend/src/html/markdown.rs`; it leaves failed image signatures unchanged rather than breaking the article page.
 
 ## Quality Gates
 
-- `npm run test` covers admin session/origin logic, whitespace-tolerant credential matching, fallback admin credential derivation, post visibility and published-field requirements, Markdown storage-image preprocessing, and subscriber validation/dedupe.
-- `npm run e2e` covers admin login, required publish fields, featured homepage/card flow, `/blog` redirect, article author block, absence of the fixed banner fallback, and newsletter persistence.
-- `npm run lint`, `npm run build`, and `npm run env:check` are expected to pass before deployment.
+- `npm run test` verifies that the Next.js runtime and React dependencies are absent.
+- Rust unit and integration coverage is expected through `npm run backend:test`.
+- `npm run build` and `npm run env:check` are expected to pass before deployment.

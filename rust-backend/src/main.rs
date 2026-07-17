@@ -25,7 +25,10 @@ use db::DbPool;
 use error::AppError;
 use serde::{Deserialize, Serialize};
 use storage::StorageClient;
-use tower_http::{services::ServeDir, trace::TraceLayer};
+use tower_http::{
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
+};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -106,6 +109,7 @@ fn build_router(state: AppState) -> Router {
         .route("/blog/:slug", get(public_post))
         .route("/sitemap.xml", get(sitemap_xml))
         .route("/robots.txt", get(robots_txt))
+        .route_service("/favicon.ico", ServeFile::new("public/favicon.ico"))
         .nest_service("/assets", ServeDir::new("public/assets"))
         .route("/health", get(health))
         .route("/api/posts", get(posts::list_posts))
