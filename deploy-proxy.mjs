@@ -10,7 +10,11 @@ for (let index = 1; index <= startupLogBaselineCount; index += 1) {
 }
 
 function targetFor(pathname) {
-  if (pathname.startsWith('/api/') && pathname !== '/api/revalidate') {
+  if (
+    (pathname.startsWith('/api/') && pathname !== '/api/revalidate') ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/robots.txt'
+  ) {
     return { host: '127.0.0.1', port: rustPort };
   }
   return { host: '127.0.0.1', port: nextPort };

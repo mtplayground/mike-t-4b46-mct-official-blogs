@@ -8,6 +8,14 @@ const nextConfig: NextConfig = {
     return {
       fallback: [
         {
+          source: "/sitemap.xml",
+          destination: `${rustApiBaseUrl.replace(/\/$/u, "")}/sitemap.xml`,
+        },
+        {
+          source: "/robots.txt",
+          destination: `${rustApiBaseUrl.replace(/\/$/u, "")}/robots.txt`,
+        },
+        {
           source: "/api/:path*",
           destination: `${rustApiBaseUrl.replace(/\/$/u, "")}/api/:path*`,
         },
