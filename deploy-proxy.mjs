@@ -12,6 +12,8 @@ for (let index = 1; index <= startupLogBaselineCount; index += 1) {
 function targetFor(pathname) {
   if (
     (pathname.startsWith('/api/') && pathname !== '/api/revalidate') ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/') ||
     pathname === '/newsletter' ||
     pathname === '/sitemap.xml' ||
     pathname === '/robots.txt'

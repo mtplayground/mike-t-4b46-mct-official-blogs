@@ -25,37 +25,37 @@ const ADMIN_MULTIPART_TOO_LARGE_MESSAGE: &str =
 #[derive(Debug, Serialize, FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct AdminCategory {
-    id: String,
-    slug: CategorySlug,
-    name: String,
-    description: Option<String>,
+    pub(crate) id: String,
+    pub(crate) slug: CategorySlug,
+    pub(crate) name: String,
+    pub(crate) description: Option<String>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct AdminPost {
-    id: String,
-    title: String,
-    slug: String,
-    excerpt: String,
-    body: String,
-    cover_image_key: Option<String>,
-    square_cover_image_key: Option<String>,
-    is_featured: bool,
-    views: i32,
-    author_name: String,
-    author_intro: String,
-    author_avatar_key: Option<String>,
-    company_name: String,
-    company_intro: String,
-    company_logo_key: Option<String>,
-    company_website_url: String,
-    status: PostStatus,
-    published_at: Option<NaiveDateTime>,
-    category_id: String,
-    created_at: NaiveDateTime,
-    updated_at: NaiveDateTime,
-    category_name: String,
+    pub(crate) id: String,
+    pub(crate) title: String,
+    pub(crate) slug: String,
+    pub(crate) excerpt: String,
+    pub(crate) body: String,
+    pub(crate) cover_image_key: Option<String>,
+    pub(crate) square_cover_image_key: Option<String>,
+    pub(crate) is_featured: bool,
+    pub(crate) views: i32,
+    pub(crate) author_name: String,
+    pub(crate) author_intro: String,
+    pub(crate) author_avatar_key: Option<String>,
+    pub(crate) company_name: String,
+    pub(crate) company_intro: String,
+    pub(crate) company_logo_key: Option<String>,
+    pub(crate) company_website_url: String,
+    pub(crate) status: PostStatus,
+    pub(crate) published_at: Option<NaiveDateTime>,
+    pub(crate) category_id: String,
+    pub(crate) created_at: NaiveDateTime,
+    pub(crate) updated_at: NaiveDateTime,
+    pub(crate) category_name: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -129,6 +129,16 @@ impl Default for PostStatus {
     fn default() -> Self {
         Self::Draft
     }
+}
+
+pub(crate) async fn fetch_admin_categories(
+    state: &AppState,
+) -> Result<Vec<AdminCategory>, AppError> {
+    Ok(sqlx::query_as::<_, AdminCategory>(
+        "SELECT id, slug, name, description FROM categories ORDER BY name ASC",
+    )
+    .fetch_all(&state.pool)
+    .await?)
 }
 
 pub async fn list_categories(
@@ -858,12 +868,12 @@ fn map_db_error(error: sqlx::Error) -> AppError {
     AppError::Database(error)
 }
 
-async fn fetch_admin_posts(state: &AppState) -> Result<Vec<AdminPost>, AppError> {
+pub(crate) async fn fetch_admin_posts(state: &AppState) -> Result<Vec<AdminPost>, AppError> {
     Ok(sqlx::query_as::<_, AdminPost>(ADMIN_POST_SELECT_LIST)
         .fetch_all(&state.pool)
         .await?)
 }
-async fn fetch_admin_post(state: &AppState, id: &str) -> Result<Option<AdminPost>, AppError> {
+pub(crate) async fn fetch_admin_post(state: &AppState, id: &str) -> Result<Option<AdminPost>, AppError> {
     Ok(sqlx::query_as::<_, AdminPost>(ADMIN_POST_SELECT_ONE)
         .bind(id)
         .fetch_optional(&state.pool)

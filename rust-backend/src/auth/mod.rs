@@ -85,13 +85,17 @@ pub fn ensure_admin_headers(state: &AppState, headers: &HeaderMap) -> Result<(),
     }
 }
 
+pub fn is_admin_authenticated(state: &AppState, headers: &HeaderMap) -> bool {
+    admin_session_from_headers(headers)
+        .map(|session| verify_admin_session(session, &state.admin.password, now_millis()))
+        .unwrap_or(false)
+}
+
 pub async fn verify_session(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<(StatusCode, Json<SessionResponse>), AppError> {
-    let authenticated = admin_session_from_headers(&headers)
-        .map(|session| verify_admin_session(session, &state.admin.password, now_millis()))
-        .unwrap_or(false);
+    let authenticated = is_admin_authenticated(&state, &headers);
 
     Ok((StatusCode::OK, Json(SessionResponse { authenticated })))
 }

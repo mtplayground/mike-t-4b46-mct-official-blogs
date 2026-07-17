@@ -12,13 +12,14 @@ mod subscribers;
 mod views;
 
 use axum::{
-    extract::{DefaultBodyLimit, Path, Query, State},
-    http::header,
+    extract::{DefaultBodyLimit, Multipart, Path, Query, State},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Json, Router,
 };
 use chrono::Datelike;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use config::{AdminCredentials, AppConfig, RevalidationConfig};
 use db::DbPool;
 use error::AppError;
@@ -47,6 +48,13 @@ struct HealthResponse<'a> {
 #[derive(Debug, Default, Deserialize)]
 struct HomeQuery {
     newsletter: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct AdminQuery {
+    notice: Option<String>,
+    error: Option<String>,
+    next: Option<String>,
 }
 
 #[tokio::main]
@@ -102,6 +110,17 @@ fn build_router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/api/posts", get(posts::list_posts))
         .route("/newsletter", post(newsletter::subscribe_html))
+        .route("/admin/login", get(admin_login_page).post(auth::login))
+        .route("/admin/logout", post(auth::logout))
+        .route("/admin", get(admin_dashboard_page))
+        .route("/admin/posts/new", get(admin_new_post_page))
+        .route("/admin/posts", post(admin_create_post_html))
+        .route("/admin/posts/:id/edit", get(admin_edit_post_page))
+        .route("/admin/posts/:id/update", post(admin_update_post_html))
+        .route("/admin/posts/:id/publish", post(admin_publish_post_html))
+        .route("/admin/posts/:id/unpublish", post(admin_unpublish_post_html))
+        .route("/admin/posts/:id/delete", post(admin_delete_post_html))
+        .route("/admin/subscribers", get(admin_subscribers_page))
         .route("/api/newsletter", post(newsletter::subscribe))
         .route("/api/admin/login", post(auth::login))
         .route("/api/admin/logout", post(auth::logout))
@@ -142,6 +161,225 @@ fn build_router(state: AppState) -> Router {
         .layer(DefaultBodyLimit::max(ADMIN_MULTIPART_BODY_LIMIT_BYTES))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+async fn admin_login_page(
+    Query(query): Query<AdminQuery>,
+) -> Result<Html<String>, AppError> {
+    let html = html::admin::render_login_page(
+        html::seo::SeoMetadata::with_canonical_url(
+            "Admin sign in",
+            "Sign in to manage myClawTeam Blog posts.",
+            "/admin/login",
+        ),
+        query.error.as_deref() == Some("invalid"),
+        query.next.unwrap_or_else(|| "/admin".to_owned()),
+    )?;
+
+    Ok(Html(html))
+}
+
+async fn admin_dashboard_page(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<AdminQuery>,
+) -> Result<Response, AppError> {
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login("/admin");
+    }
+
+    let posts = posts::admin::fetch_admin_posts(&state).await?;
+    let html = html::admin::render_dashboard_page(
+        html::seo::SeoMetadata::with_canonical_url(
+            "Admin posts",
+            "Manage myClawTeam Blog posts.",
+            "/admin",
+        ),
+        query.notice.map(html::admin::Notice::new),
+        &posts,
+    )?;
+
+    Ok(Html(html).into_response())
+}
+
+async fn admin_new_post_page(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<AdminQuery>,
+) -> Result<Response, AppError> {
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login("/admin/posts/new");
+    }
+
+    let categories = posts::admin::fetch_admin_categories(&state).await?;
+    let context = html::admin::PostFormContext::new(
+        html::seo::SeoMetadata::with_canonical_url(
+            "New post",
+            "Create a myClawTeam Blog post.",
+            "/admin/posts/new",
+        ),
+        categories,
+        query.notice.map(html::admin::Notice::new),
+    );
+    Ok(Html(html::admin::render_post_form_page(context)?).into_response())
+}
+
+async fn admin_edit_post_page(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Query(query): Query<AdminQuery>,
+) -> Result<Response, AppError> {
+    let next = format!("/admin/posts/{id}/edit");
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login(&next);
+    }
+
+    let post = posts::admin::fetch_admin_post(&state, &id)
+        .await?
+        .ok_or(AppError::NotFound("Post not found."))?;
+    let categories = posts::admin::fetch_admin_categories(&state).await?;
+    let context = html::admin::PostFormContext::edit(
+        html::seo::SeoMetadata::with_canonical_url(
+            format!("Edit {}", post.title),
+            "Edit a myClawTeam Blog post.",
+            next.clone(),
+        ),
+        &post,
+        categories,
+        query.notice.map(html::admin::Notice::new),
+    );
+    Ok(Html(html::admin::render_post_form_page(context)?).into_response())
+}
+
+async fn admin_subscribers_page(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, AppError> {
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login("/admin/subscribers");
+    }
+
+    let subscribers = subscribers::fetch_admin_subscribers(&state).await?;
+    let html = html::admin::render_subscribers_page(
+        html::seo::SeoMetadata::with_canonical_url(
+            "Admin subscribers",
+            "Review myClawTeam Blog newsletter subscribers.",
+            "/admin/subscribers",
+        ),
+        &subscribers,
+    )?;
+    Ok(Html(html).into_response())
+}
+
+async fn admin_create_post_html(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    multipart: Multipart,
+) -> Result<Response, AppError> {
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login("/admin/posts/new");
+    }
+
+    match posts::admin::create_admin_post(State(state), headers, multipart).await {
+        Ok(response) => Ok(response),
+        Err(error) => redirect_with_notice("/admin/posts/new", app_error_notice(&error)),
+    }
+}
+
+async fn admin_update_post_html(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    multipart: Multipart,
+) -> Result<Response, AppError> {
+    let edit_path = format!("/admin/posts/{id}/edit");
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login(&edit_path);
+    }
+
+    match posts::admin::update_admin_post(State(state), headers, Path(id), multipart).await {
+        Ok(response) => Ok(response),
+        Err(error) => redirect_with_notice(&edit_path, app_error_notice(&error)),
+    }
+}
+
+async fn admin_publish_post_html(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Response, AppError> {
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login("/admin");
+    }
+
+    match posts::admin::publish_admin_post(State(state), headers, Path(id)).await {
+        Ok(response) => Ok(response),
+        Err(error) => redirect_with_notice("/admin", app_error_notice(&error)),
+    }
+}
+
+async fn admin_unpublish_post_html(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Response, AppError> {
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login("/admin");
+    }
+
+    match posts::admin::unpublish_admin_post(State(state), headers, Path(id)).await {
+        Ok(response) => Ok(response),
+        Err(error) => redirect_with_notice("/admin", app_error_notice(&error)),
+    }
+}
+
+async fn admin_delete_post_html(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Response, AppError> {
+    if !auth::is_admin_authenticated(&state, &headers) {
+        return redirect_to_admin_login("/admin");
+    }
+
+    match posts::admin::delete_admin_post(State(state), headers, Path(id)).await {
+        Ok(response) => Ok(response),
+        Err(error) => redirect_with_notice("/admin", app_error_notice(&error)),
+    }
+}
+
+fn redirect_to_admin_login(next: &str) -> Result<Response, AppError> {
+    redirect_response(&format!("/admin/login?next={}", encode_query_value(next)))
+}
+
+fn redirect_with_notice(path: &str, notice: &str) -> Result<Response, AppError> {
+    redirect_response(&format!("{path}?notice={}", encode_query_value(notice)))
+}
+
+fn redirect_response(location: &str) -> Result<Response, AppError> {
+    let location = HeaderValue::from_str(location)
+        .map_err(|_| AppError::BadRequest("Redirect location is invalid."))?;
+    Ok((StatusCode::SEE_OTHER, [(header::LOCATION, location)]).into_response())
+}
+
+fn encode_query_value(value: &str) -> String {
+    utf8_percent_encode(value, NON_ALPHANUMERIC).to_string()
+}
+
+fn app_error_notice(error: &AppError) -> &'static str {
+    match error {
+        AppError::BadRequest(message)
+        | AppError::PayloadTooLarge(message)
+        | AppError::NotFound(message)
+        | AppError::Unauthorized(message)
+        | AppError::PublicInternal(message) => message,
+        AppError::Storage(_)
+        | AppError::Config(_)
+        | AppError::Database(_)
+        | AppError::Io(_)
+        | AppError::Template(_) => "Admin action failed. Try again soon.",
+    }
 }
 
 async fn public_home(

@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
     const rustApiBaseUrl = process.env.RUST_API_BASE_URL || "http://127.0.0.1:8081";
 
     return {
+      beforeFiles: [
+        {
+          source: "/admin/:path*",
+          destination: `${rustApiBaseUrl.replace(/\/$/u, "")}/admin/:path*`,
+        },
+      ],
       fallback: [
         {
           source: "/newsletter",
