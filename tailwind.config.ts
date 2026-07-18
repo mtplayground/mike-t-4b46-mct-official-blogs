@@ -1,5 +1,20 @@
 import type { Config } from "tailwindcss";
 
+const ideavibesPalette = {
+  white: "#FFFFFF",
+  mist: "#F7F3FF",
+  aura: "#FFF6E5",
+  coral: "#FF5A3C",
+  "coral-hover": "#E9482E",
+  violet: "#6C5CE7",
+  plum: "#2B183F",
+  ink: "#161024",
+  muted: "#6D6478",
+  line: "#E8E1F4",
+  "dark-card": "#241631",
+  "dark-card-muted": "#C9BCD8",
+} as const;
+
 const config: Config = {
   content: [
     "./rust-backend/templates/**/*.html",
@@ -8,15 +23,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        ideavibes: ideavibesPalette,
         editorial: {
-          white: "#FFFFFF",
-          cream: "#F7F2EA",
-          red: "#E8472B",
-          ink: "#181716",
-          muted: "#6F6A64",
-          line: "#E6DDD2",
-          "dark-card": "#1F1C1A",
-          "dark-card-muted": "#A8A09A",
+          white: ideavibesPalette.white,
+          cream: ideavibesPalette.aura,
+          red: ideavibesPalette.coral,
+          "red-hover": ideavibesPalette["coral-hover"],
+          ink: ideavibesPalette.ink,
+          muted: ideavibesPalette.muted,
+          line: ideavibesPalette.line,
+          "dark-card": ideavibesPalette["dark-card"],
+          "dark-card-muted": ideavibesPalette["dark-card-muted"],
         },
       },
       fontFamily: {
@@ -34,7 +51,7 @@ const config: Config = {
         card: "8px",
       },
       boxShadow: {
-        editorial: "0 24px 60px rgb(24 23 22 / 0.12)",
+        editorial: "0 24px 60px rgb(22 16 36 / 0.12)",
       },
     },
   },

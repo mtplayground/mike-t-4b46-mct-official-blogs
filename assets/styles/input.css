@@ -67,7 +67,7 @@
   }
 
   .editorial-button {
-    @apply inline-flex w-fit items-center justify-center rounded-button bg-editorial-red px-6 py-3 text-sm font-bold text-editorial-white shadow-editorial transition hover:bg-[#C83A24] focus:outline-none focus:ring-2 focus:ring-editorial-red focus:ring-offset-2;
+    @apply inline-flex w-fit items-center justify-center rounded-button bg-editorial-red px-6 py-3 text-sm font-bold text-editorial-white shadow-editorial transition hover:bg-editorial-red-hover focus:outline-none focus:ring-2 focus:ring-editorial-red focus:ring-offset-2;
   }
 
   .feature-card {
