@@ -97,9 +97,9 @@ test("admin publishes a post that drives Axum HTML homepage, detail page, and ne
     mimeType: "image/png",
     name: "avatar.png",
   });
-  await page.getByLabel("Company name").fill("myClawTeam");
+  await page.getByLabel("Company name").fill("Ideavibes");
   await page.getByLabel("Company intro").fill(companyIntro);
-  await page.getByLabel("Company website URL").fill("https://myclawteam.ai");
+  await page.getByLabel("Company website URL").fill("https://ideavibes.ai");
   await page.getByRole("button", { name: "Create post" }).click();
 
   await expect(page).toHaveURL(/\/admin\?notice=/);
