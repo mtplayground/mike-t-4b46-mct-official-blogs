@@ -1,6 +1,6 @@
-# myClawTeam Official Blogs
+# Ideavibes Official Blog
 
-Rust Axum and server-rendered HTML foundation for the myClawTeam official blog, with static Tailwind CSS assets.
+Rust Axum and server-rendered HTML foundation for the Ideavibes official blog, with static Tailwind CSS assets.
 
 ## Development
 
@@ -38,15 +38,13 @@ npm run env:check
 
 ## Runtime States
 
-Axum serves public routes, admin routes, static assets, and not-found/error responses directly. Public readers get links back to the blog/home pages, while server-side admin errors log the underlying exception and return coherent HTML responses.
+Axum serves public routes, admin routes, static assets, committed public images, and not-found/error responses directly. Public readers get links back to the blog/home pages, while server-side admin errors log the underlying exception and return coherent HTML responses.
 
 ## Styling
 
-Tailwind CSS is configured with editorial design tokens for cream/white section bands, the
-`#E8472B` red accent, dark feature-card surfaces, heading/body type scales, and rounded red button
-components.
+Tailwind CSS is configured with Ideavibes color tokens, warm light section bands, the coral accent, dark feature-card surfaces, heading/body type scales, and rounded button components.
 
-The Rust templates under `rust-backend/templates/` render the shared header, footer, article cards, admin forms, and newsletter signup.
+The Rust templates under `rust-backend/templates/` render the shared Ideavibes header, footer, article cards, admin forms, and newsletter signup.
 
 ## Database
 
@@ -78,7 +76,7 @@ Required runtime env vars are documented in `.env.example` and validated by
 
 ## Bare Self-Hosted Deployment
 
-This app runs as a single Rust Axum process. Axum serves HTML pages, admin form flows, API endpoints, and `/assets/*` static files directly.
+This app runs as a single Rust Axum process. Axum serves HTML pages, admin form flows, API endpoints, `/assets/*` static files, and `/images/*` committed public images directly.
 
 Prerequisites:
 
@@ -95,7 +93,7 @@ npm ci
 npm run env:check
 npm run build
 
-PORT=8080 ./rust-backend/target/release/mct-official-blogs-backend
+PORT=8080 ./rust-backend/target/release/ideavibes-official-blog-backend
 ```
 
 The Rust backend binds `0.0.0.0:${PORT:-8080}`. Put a TLS-terminating reverse proxy in front of the process, preserve the original public host/proto headers, and point `SELF_URL` at the externally reachable origin.

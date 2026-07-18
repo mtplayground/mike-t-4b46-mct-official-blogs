@@ -1,5 +1,5 @@
 [package]
-name = "mct-official-blogs-backend"
+name = "ideavibes-official-blog-backend"
 version = "0.1.0"
 edition = "2021"
 publish = false
