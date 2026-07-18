@@ -1,53 +1,37 @@
-Architecture plan for issues #180-#188
+Architecture plan for issues #198-#202
 
 Goal
-- Migrate the public blog and admin flows from a Next.js + React frontend behind a Rust API proxy to a single Axum server that renders complete HTML, serves static CSS/assets, keeps the existing Postgres data model, and preserves object-storage-backed media behavior.
+- Finish the existing myClawTeam-to-Ideavibes rebrand across styling, visible brand surfaces, SEO metadata, company-card defaults, docs, and package metadata while preserving the current Rust Axum server-rendered blog architecture.
+- Product brand/name source of truth for this batch is the GitHub issues: Ideavibes.
 
-Target module structure
-- `assets/styles/input.css`
-  - Tailwind source for editorial tokens/components currently in `app/globals.css`.
-  - Compiled by a standalone Tailwind CLI step into `public/assets/app.css`.
-- `public/assets/`
-  - Static CSS output and any non-user-uploaded public assets served by Axum through `tower_http::services::ServeDir`.
-- `rust-backend/src/html/`
-  - `mod.rs`: public exports and shared rendering helpers.
-  - `layout.rs`: global layout context, navigation/footer data, flash/notice support, asset URL helpers.
-  - `public.rs`: homepage, article, archive redirect/not-found view models and render entrypoints.
-  - `admin.rs`: login, dashboard, post form/list, subscriber views and form error/notice contexts.
-  - `markdown.rs`: Markdown-to-sanitized-HTML rendering, including storage-reference signing/rewrite integration.
-  - `seo.rs`: page metadata, canonical URL generation, Open Graph/Twitter fields, JSON-LD builders, sitemap/robots helpers.
-- `rust-backend/templates/`
-  - `layout.html`, `partials/{header,footer,post_card}.html`, `public/{home,post,not_found}.html`, and admin templates added with issue #186.
-  - Templates should link `/assets/app.css` and avoid JS requirements for core content or forms.
-- Existing Rust modules remain the data/mutation boundary:
-  - `posts`: list/detail/admin mutations, published visibility, view incrementing, media upload paths.
-  - `storage`: Tigris/S3 key prefixing, signed image URLs, multipart upload support.
-  - `auth`: admin credential verification/session cookies.
-  - `newsletter` or equivalent handler module if split from `main.rs` during issue #185.
+Current project shape
+- Rust Axum backend in `rust-backend/src` renders Askama-style HTML templates from `rust-backend/templates`.
+- Tailwind source lives in `assets/styles/input.css`, with theme tokens in `tailwind.config.ts` and compiled output in `public/assets/app.css`.
+- Public brand surfaces are mainly `rust-backend/templates/partials/header.html`, `rust-backend/templates/partials/footer.html`, public templates, and SEO helpers in `rust-backend/src/html/seo.rs`.
+- Company-card data flows through `rust-backend/src/posts/mod.rs`, `rust-backend/src/posts/admin.rs`, `rust-backend/src/html/admin.rs`, `rust-backend/src/html/public.rs`, Prisma schema defaults, and tests.
+- Docs and metadata touch `README.md`, `PRODUCT.md`, `.env.example`, `package.json`, and possibly test fixtures.
 
-Shared types and boundaries
-- Keep database DTOs in Rust, not templates. Route handlers should map DB rows into small template context structs before rendering.
-- SEO data should be derived from the same post context used by `public::PostPage`, so titles/descriptions/canonical and JSON-LD cannot drift from visible content.
-- Markdown rendering should return sanitized HTML/newtype-safe content consumed by Askama templates; do not expose raw unsanitized Markdown directly to templates.
-- Storage references should continue flowing through the existing signing/proxy helpers before Markdown sanitization so `storage:` images render in server HTML without exposing raw object keys.
-- Admin form handlers should reuse existing auth and mutation functions, returning redirects plus notices instead of duplicating business logic.
+Module structure and file organization
+- Keep brand constants centralized where the existing code already has stable boundaries:
+  - `rust-backend/src/html/seo.rs`: site name, default description, publisher JSON-LD values, canonical/metadata helpers.
+  - `rust-backend/src/posts/mod.rs`: public fallback company-card defaults for legacy posts.
+  - `rust-backend/src/posts/admin.rs` and `rust-backend/src/html/admin.rs`: admin form defaults for newly authored posts.
+- Keep visual tokens in `tailwind.config.ts`; do not duplicate palette hex values in templates unless a specific asset requires it.
+- Header/footer logo and wordmark should be template-level partial changes, ideally using a stable public asset path under `public/images` if an Ideavibes logo asset is added or already exists.
+- Leave database migrations append-only. Update current Prisma defaults for future generated clients and runtime code defaults, but do not rewrite old migration history unless an issue explicitly asks for migration surgery.
+- Tests should stay near the behavior they protect: Rust unit tests beside SEO/post default logic, Playwright tests for rendered public/admin brand surfaces if existing e2e coverage is touched.
 
-Issue dependency order
-1. #180 Static CSS build: unblock server-rendered templates by producing `public/assets/app.css` without requiring Next/PostCSS at runtime.
-2. #181 Rendering foundation: add Askama/layout/template modules and shared context conventions.
-3. #182 Public Axum pages: wire `/`, `/blog`, `/blog/:slug`, 404 HTML, and `/assets` serving using existing published-post queries.
-4. #183 Markdown rendering: replace React Markdown with Rust-side `pulldown-cmark` + `ammonia` + storage image signing for article content.
-5. #184 SEO/sitemap/robots: depends on public HTML rendering and post contexts; replace Next sitemap/robots with Axum routes.
-6. #185 Newsletter/views HTML-first: add no-JS form POST/redirect behavior and server-side view incrementing.
-7. #186 Admin HTML forms: convert authenticated admin workflows after layout/form patterns are established; keep JSON endpoints only where needed for compatibility.
-8. #187 Remove Next.js runtime: only after public/admin parity and tests are in place enough to validate Axum-only behavior; delete React/Next/proxy code and make the Rust binary the service entrypoint.
-9. #188 Test suite/E2E: add/adjust tests throughout, then finalize coverage after the runtime migration.
+Dependencies between issues
+1. #198 Tailwind palette is the visual foundation. It should land before header/footer visual polish so classes and colors are available.
+2. #199 Header/footer logo and wordmark depend on the final palette tokens and should avoid hard-coded old brand copy.
+3. #200 SEO metadata and page copy can proceed in parallel with #199 but must use the same Ideavibes naming and URL decisions.
+4. #201 Company-card defaults should follow #200's naming conventions and update both runtime fallbacks and admin defaults together.
+5. #202 Docs and package metadata should be last, after code-level naming and URLs are settled, so documentation reflects the final implementation.
 
 Key design decisions
-- Axum is the final web server for both HTML and API/form routes; avoid adding another frontend runtime once migration starts.
-- Prefer progressive enhancement: homepage, article pages, newsletter signup, and admin CRUD must work through normal HTML requests and redirects without client JavaScript.
-- Public origin/canonical URLs must be proxy-aware: use `X-Forwarded-Host` and `X-Forwarded-Proto` when deriving canonical, Open Graph, sitemap, redirects, or same-origin checks.
-- Keep object-storage safety intact: all uploaded media keys must retain the configured storage prefix and multipart upload code must keep concrete content length handling.
-- Use Askama compile-time templates for most HTML. Keep template contexts explicit and small to make tests straightforward.
-- Remove Next.js only in #187, after Axum routes, CSS, templates, admin, SEO, and no-JS forms are functionally equivalent.
-- Tests should exercise rendered HTML, auth redirects, configured/default login behavior, sitemap visibility, Markdown sanitization, newsletter redirects, and multipart storage invariants.
+- Use Ideavibes consistently as the brand name. Do not introduce alternate names or placeholders.
+- Prefer central constants over scattered string replacements where code already has semantic defaults, especially for SEO and company-card behavior.
+- Preserve existing routes, form fields, database column names, and public behavior unless a rebrand issue specifically requires a visible text, default, or asset change.
+- Keep URL changes conservative. Replace `myclawteam.ai` only where the issue implementation establishes an Ideavibes URL/logo source; otherwise record the unresolved decision in the issue session instead of guessing.
+- Regenerate `public/assets/app.css` after palette changes and verify the Rust backend build/tests relevant to each issue.
+- Because the app runs behind Ideavibes' reverse proxy, any future origin/canonical work must continue honoring `X-Forwarded-Host` and `X-Forwarded-Proto` rather than raw `Host`.
