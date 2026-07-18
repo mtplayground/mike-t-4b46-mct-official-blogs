@@ -101,9 +101,9 @@ impl Default for PostForm {
             category_id: String::new(),
             author_name: String::new(),
             author_intro: String::new(),
-            company_name: "myClawTeam".to_owned(),
+            company_name: crate::posts::DEFAULT_COMPANY_NAME.to_owned(),
             company_intro: String::new(),
-            company_website_url: "https://myclawteam.ai".to_owned(),
+            company_website_url: crate::posts::DEFAULT_COMPANY_WEBSITE_URL.to_owned(),
             is_featured: false,
             status: PostStatus::Draft,
             remove_cover: false,
@@ -634,7 +634,7 @@ fn validate_form(
         return Err(AppError::BadRequest("Category is required."));
     }
     if form.company_website_url.trim().is_empty() {
-        form.company_website_url = "https://myclawteam.ai".to_owned();
+        form.company_website_url = crate::posts::DEFAULT_COMPANY_WEBSITE_URL.to_owned();
     }
     if form.author_intro.len() > 500 {
         return Err(AppError::BadRequest(
@@ -703,7 +703,7 @@ fn validate_form(
             ));
         }
     } else if form.company_name.trim().is_empty() {
-        form.company_name = "myClawTeam".to_owned();
+        form.company_name = crate::posts::DEFAULT_COMPANY_NAME.to_owned();
     }
     Ok(())
 }
@@ -949,10 +949,10 @@ mod tests {
             author_name: "Author".to_owned(),
             author_intro: "Intro".to_owned(),
             author_avatar_key: Some("post-images/2026/06/avatar.png".to_owned()),
-            company_name: "myClawTeam".to_owned(),
+            company_name: crate::posts::DEFAULT_COMPANY_NAME.to_owned(),
             company_intro: "Company intro".to_owned(),
             company_logo_key: Some("post-images/2026/06/company.png".to_owned()),
-            company_website_url: "https://myclawteam.ai".to_owned(),
+            company_website_url: crate::posts::DEFAULT_COMPANY_WEBSITE_URL.to_owned(),
             status: PostStatus::Draft,
             published_at: None,
             category_id: "category-1".to_owned(),
@@ -1073,7 +1073,7 @@ mod tests {
 
         validate_form(&mut form, false, None).expect("draft form should default company name");
 
-        assert_eq!(form.company_name, "myClawTeam");
+        assert_eq!(form.company_name, crate::posts::DEFAULT_COMPANY_NAME);
     }
 
     #[test]
@@ -1118,7 +1118,7 @@ mod tests {
             category_id: "category-1".to_owned(),
             author_name: "Author".to_owned(),
             author_intro: "Intro".to_owned(),
-            company_name: "myClawTeam".to_owned(),
+            company_name: crate::posts::DEFAULT_COMPANY_NAME.to_owned(),
             company_intro: "  ".to_owned(),
             status: PostStatus::Published,
             cover_image: Some(ImageUpload {
@@ -1153,9 +1153,9 @@ mod tests {
             category_id: "category-1".to_owned(),
             author_name: "Author".to_owned(),
             author_intro: "Intro".to_owned(),
-            company_name: "myClawTeam".to_owned(),
+            company_name: crate::posts::DEFAULT_COMPANY_NAME.to_owned(),
             company_intro: "Company intro".to_owned(),
-            company_website_url: "https://myclawteam.ai".to_owned(),
+            company_website_url: crate::posts::DEFAULT_COMPANY_WEBSITE_URL.to_owned(),
             status: PostStatus::Published,
             cover_image: Some(ImageUpload {
                 body: vec![1],
@@ -1189,9 +1189,9 @@ mod tests {
             category_id: "category-1".to_owned(),
             author_name: "Author".to_owned(),
             author_intro: "Intro".to_owned(),
-            company_name: "myClawTeam".to_owned(),
+            company_name: crate::posts::DEFAULT_COMPANY_NAME.to_owned(),
             company_intro: "Company intro".to_owned(),
-            company_website_url: "https://myclawteam.ai".to_owned(),
+            company_website_url: crate::posts::DEFAULT_COMPANY_WEBSITE_URL.to_owned(),
             status: PostStatus::Published,
             cover_image: Some(ImageUpload {
                 body: vec![1],
