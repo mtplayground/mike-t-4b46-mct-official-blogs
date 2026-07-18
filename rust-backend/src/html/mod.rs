@@ -35,6 +35,8 @@ mod tests {
         let html = public::render_home_page(page).expect("home page should render");
 
         assert!(html.contains(r#"<link rel="stylesheet" href="/assets/app.css">"#));
+        assert!(html.contains(r#"src="/images/ideavibes-wordmark.svg""#));
+        assert!(html.contains(r#"alt="Ideavibes""#));
         assert!(html.contains("You are on the list."));
         assert!(html.contains("From Vibe Coding to Vibe Shipping"));
         assert!(html.contains(r#"href="/blog/from-vibe-coding-to-vibe-shipping""#));
