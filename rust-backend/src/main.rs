@@ -202,7 +202,7 @@ async fn admin_login_page(
     let html = html::admin::render_login_page(
         html::seo::SeoMetadata::with_canonical_url(
             "Admin sign in",
-            "Sign in to manage myClawTeam Blog posts.",
+            "Sign in to manage Ideavibes posts.",
             "/admin/login",
         ),
         query.error.as_deref() == Some("invalid"),
@@ -225,7 +225,7 @@ async fn admin_dashboard_page(
     let html = html::admin::render_dashboard_page(
         html::seo::SeoMetadata::with_canonical_url(
             "Admin posts",
-            "Manage myClawTeam Blog posts.",
+            "Manage Ideavibes posts.",
             "/admin",
         ),
         query.notice.map(html::admin::Notice::new),
@@ -248,7 +248,7 @@ async fn admin_new_post_page(
     let context = html::admin::PostFormContext::new(
         html::seo::SeoMetadata::with_canonical_url(
             "New post",
-            "Create a myClawTeam Blog post.",
+            "Create an Ideavibes post.",
             "/admin/posts/new",
         ),
         categories,
@@ -275,7 +275,7 @@ async fn admin_edit_post_page(
     let context = html::admin::PostFormContext::edit(
         html::seo::SeoMetadata::with_canonical_url(
             format!("Edit {}", post.title),
-            "Edit a myClawTeam Blog post.",
+            "Edit an Ideavibes post.",
             next.clone(),
         ),
         &post,
@@ -297,7 +297,7 @@ async fn admin_subscribers_page(
     let html = html::admin::render_subscribers_page(
         html::seo::SeoMetadata::with_canonical_url(
             "Admin subscribers",
-            "Review myClawTeam Blog newsletter subscribers.",
+            "Review Ideavibes newsletter subscribers.",
             "/admin/subscribers",
         ),
         &subscribers,
@@ -906,8 +906,8 @@ mod tests {
                 $1, $2, $3, $4, $5, 'post-images/2026/07/cover.png',
                 'post-images/2026/07/square.png', $6, 7, 'Test Author',
                 'Author intro for route tests.', 'post-images/2026/07/avatar.png',
-                'myClawTeam', 'Company intro for route tests.',
-                'post-images/2026/07/company.png', 'https://myclawteam.ai',
+                'Example Company', 'Company intro for route tests.',
+                'post-images/2026/07/company.png', 'https://example.test',
                 {status_sql}, {published_at_sql}, $7, NOW(), NOW()
             )
             "#,
