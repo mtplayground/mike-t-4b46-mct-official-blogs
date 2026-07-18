@@ -179,10 +179,22 @@ fn build_router(state: AppState) -> Router {
 fn app_path(relative_path: &str) -> PathBuf {
     let root = env::var("APP_ROOT")
         .map(PathBuf::from)
-        .or_else(|_| env::current_dir())
-        .unwrap_or_else(|_| PathBuf::from("."));
+        .ok()
+        .or_else(|| env::current_dir().ok().filter(|path| path.join("public").is_dir()))
+        .or_else(discover_app_root_from_exe)
+        .unwrap_or_else(|| PathBuf::from("."));
 
     root.join(relative_path)
+}
+
+fn discover_app_root_from_exe() -> Option<PathBuf> {
+    let mut path = env::current_exe().ok()?;
+    while path.pop() {
+        if path.join("public").is_dir() && path.join("rust-backend").is_dir() {
+            return Some(path);
+        }
+    }
+    None
 }
 
 fn emit_startup_log_flush_if_requested() {
