@@ -3,10 +3,10 @@ use serde_json::{json, Map, Value};
 
 use crate::posts::PublicPost;
 
-pub(crate) const SITE_NAME: &str = "myClawTeam Blog";
+pub(crate) const SITE_NAME: &str = "Ideavibes";
 const DEFAULT_SOCIAL_IMAGE_PATH: &str = "/images/editorial-hero.png";
 const DEFAULT_DESCRIPTION: &str =
-    "Official updates, product progress, announcements, and engineering notes from myClawTeam.";
+    "Official updates, product progress, announcements, and engineering notes from Ideavibes.";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SeoMetadata {
@@ -96,7 +96,7 @@ impl SeoMetadata {
         let canonical_url = absolute_url(base_url, "/");
         Self::with_canonical_url(
             SITE_NAME,
-            "Practical notes on shipping software with AI-assisted teams.",
+            DEFAULT_DESCRIPTION,
             canonical_url,
         )
         .with_social_image(absolute_url(base_url, DEFAULT_SOCIAL_IMAGE_PATH))
@@ -228,7 +228,7 @@ fn blog_json_ld(base_url: &str) -> Value {
         "name": SITE_NAME,
         "description": DEFAULT_DESCRIPTION,
         "url": absolute_url(base_url, "/"),
-        "publisher": { "@type": "Organization", "name": "myClawTeam", "url": "https://myclawteam.ai" }
+        "publisher": { "@type": "Organization", "name": "Ideavibes", "url": absolute_url(base_url, "/") }
     })
 }
 
@@ -297,11 +297,11 @@ mod tests {
             author_intro: "Writes about shipping reliable software.".to_owned(),
             author_avatar_key: None,
             author_avatar_url: Some("https://example.test/author.png".to_owned()),
-            company_name: "myClawTeam".to_owned(),
+            company_name: "Example Company".to_owned(),
             company_intro: "Builds tools for teams.".to_owned(),
             company_logo_key: None,
-            company_logo_url: "https://myclawteam.ai/logo.png".to_owned(),
-            company_website_url: "https://myclawteam.ai".to_owned(),
+            company_logo_url: "https://example.test/logo.png".to_owned(),
+            company_website_url: "https://example.test".to_owned(),
             status: PostStatus::Published,
             published_at: Some(published_at),
             category_id: "cat-engineering".to_owned(),
@@ -332,6 +332,19 @@ mod tests {
         assert!(json_ld.contains(r#""@type":"Article""#));
         assert!(json_ld.contains(r#""@type":"BreadcrumbList""#));
         assert!(json_ld.contains(r#""mainEntityOfPage""#));
+    }
+
+    #[test]
+    fn home_metadata_uses_ideavibes_branding() {
+        let metadata = SeoMetadata::home("https://blog.example.com");
+        let json_ld = metadata.json_ld.join("\n");
+
+        assert_eq!(metadata.site_name, "Ideavibes");
+        assert_eq!(metadata.title, "Ideavibes");
+        assert!(metadata.description.contains("Ideavibes"));
+        assert!(json_ld.contains(r#""name":"Ideavibes""#));
+        assert!(json_ld.contains(r#""publisher":{"@type":"Organization","name":"Ideavibes""#));
+        assert!(!json_ld.contains("myClawTeam"));
     }
 
     #[test]
