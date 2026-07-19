@@ -1,17 +1,31 @@
-Architecture plan for Issue #222: Use the logo's sail shape for the favicon
+Architecture plan for Issues #224-#227: Blog article layout and typography refinements
 
 Scope and module structure
-- Static asset layer: update public/favicon.svg and public/images/ideavibes-mark.svg to the same sail-only Ideavibes mark: no wordmark, no red dot, no background.
-- Binary favicon asset: regenerate public/favicon.ico from the same sail-only source so browser ICO fallback matches the SVG favicon and is not stale.
-- Template/layout layer: keep rust-backend/templates/layout.html favicon links unchanged; the issue explicitly says the existing /favicon.ico and /favicon.svg links should remain as-is.
-- Test layer: update rust-backend/src/html/mod.rs tests to assert the shared layout includes the /favicon.svg link.
+- Shared page chrome:
+  - `rust-backend/templates/partials/header.html` owns the top navigation logo.
+  - `rust-backend/templates/partials/footer.html` owns the footer logo and newsletter area.
+  - Issue #224 should update only logo display sizing classes/attributes in these partials; keep the existing Ideavibes hosted logo URL and alt text.
+- Public article page:
+  - `rust-backend/templates/public/post.html` owns the article title, rendered markdown insertion point, cover image, and attribution cards.
+  - Issue #225 should reduce only the page-level post title class, avoiding changes to homepage/post-card headings.
+  - Issue #227 should change the attribution `<aside>` layout from responsive two-column to a single-column stack so the author and company cards each span the full article width.
+- Markdown rendering:
+  - `rust-backend/src/html/markdown.rs` converts markdown to sanitized HTML and wraps it in `.article-prose`.
+  - `assets/styles/input.css` defines Tailwind component styles; generated CSS is committed in `public/assets/app.css` after `npm run build:css`.
+  - Issue #226 should style `.article-prose h1`, `.article-prose h2`, and `.article-prose h3` so rendered markdown headings are visually distinct after Tailwind base resets.
+- Tests/build:
+  - Use plain Rust backend tooling (`cargo test --manifest-path rust-backend/Cargo.toml`) and CSS generation (`npm run build:css`).
+  - Existing markdown tests already verify `#` becomes `<h1>`; add/adjust tests only if implementation changes renderer behavior.
 
 Dependencies between issues
-- This batch contains only Issue #222.
-- It depends on the previous hosted header/footer logo behavior staying intact: do not change the hosted header/footer logo URL introduced by Issue #220.
+- #224 is independent and can be implemented first because it touches shared partials only.
+- #225 and #227 both edit `rust-backend/templates/public/post.html`; apply sequentially to avoid small template conflicts.
+- #226 depends conceptually on the existing `.article-prose` wrapper from `markdown.rs`, but does not require renderer changes unless malformed markdown support is explicitly requested.
+- CSS changes for #226 require regenerating `public/assets/app.css`; template-only issues do not require CSS rebuild unless new Tailwind classes are introduced that are not already emitted.
 
 Key design decisions
-- Product branding is Ideavibes, exactly as named in the issue.
-- Use a repo-native SVG edit for the sail mark instead of generating a new wordmark or adding background/red-dot elements.
-- Treat the SVG sail mark as the source of truth, and regenerate favicon.ico from it.
-- Limit code changes to tests/layout assertions; no routing, API, database, auth, storage, or environment behavior changes are needed.
+- Product brand remains Ideavibes as used in the existing templates and issue text.
+- Prefer minimal template class changes over adding new components for one-off sizing/layout tweaks.
+- Keep markdown sanitization in Rust unchanged for security; solve heading presentation in CSS, not by injecting classes into user-authored markdown HTML.
+- Use repo-native Tailwind component styles for article prose headings so future markdown content automatically renders `#`, `##`, and `###` consistently.
+- Make the author/company cards full-width by removing the medium-screen two-column grid rather than duplicating card markup or changing backend context types.
