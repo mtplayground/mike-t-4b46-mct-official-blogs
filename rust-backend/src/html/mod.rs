@@ -37,6 +37,7 @@ mod tests {
         assert!(html.contains(r#"<link rel="stylesheet" href="/assets/app.css">"#));
         assert!(html.contains(r#"src="/images/ideavibes-wordmark.svg""#));
         assert!(html.contains(r#"alt="Ideavibes""#));
+        assert!(html.contains("From idea to product."));
         assert!(!html.contains(r#"<p class="eyebrow">Official Blog</p>"#));
         assert!(!html.contains(r#"<h1 class="text-heading-lg">Official Blog</h1>"#));
         assert!(!html.contains(r#"<p class="max-w-2xl text-lead text-editorial-muted">Latest product and engineering updates.</p>"#));

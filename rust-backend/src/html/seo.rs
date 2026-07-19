@@ -5,8 +5,7 @@ use crate::posts::PublicPost;
 
 pub(crate) const SITE_NAME: &str = "Ideavibes";
 const DEFAULT_SOCIAL_IMAGE_PATH: &str = "/images/editorial-hero.png";
-const DEFAULT_DESCRIPTION: &str =
-    "Official updates, product progress, announcements, and engineering notes from Ideavibes.";
+const DEFAULT_DESCRIPTION: &str = "From idea to product.";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SeoMetadata {
@@ -341,7 +340,7 @@ mod tests {
 
         assert_eq!(metadata.site_name, "Ideavibes");
         assert_eq!(metadata.title, "Ideavibes");
-        assert!(metadata.description.contains("Ideavibes"));
+        assert_eq!(metadata.description, "From idea to product.");
         assert!(json_ld.contains(r#""name":"Ideavibes""#));
         assert!(json_ld.contains(r#""publisher":{"@type":"Organization","name":"Ideavibes""#));
         assert!(!json_ld.contains("myClawTeam"));
