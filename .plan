@@ -1,31 +1,26 @@
-Architecture plan for Issues #224-#227: Blog article layout and typography refinements
+Architecture plan for Issue #232: Link the footer logo to https://ideavibes.ai/
 
 Scope and module structure
-- Shared page chrome:
+- Shared footer partial:
+  - `rust-backend/templates/partials/footer.html` owns the footer logo, tagline, and newsletter form.
+  - Issue #232 should update only the footer logo anchor `href` from the local blog root (`/`) to the external Ideavibes homepage (`https://ideavibes.ai/`).
+- Header partial:
   - `rust-backend/templates/partials/header.html` owns the top navigation logo.
-  - `rust-backend/templates/partials/footer.html` owns the footer logo and newsletter area.
-  - Issue #224 should update only logo display sizing classes/attributes in these partials; keep the existing Ideavibes hosted logo URL and alt text.
-- Public article page:
-  - `rust-backend/templates/public/post.html` owns the article title, rendered markdown insertion point, cover image, and attribution cards.
-  - Issue #225 should reduce only the page-level post title class, avoiding changes to homepage/post-card headings.
-  - Issue #227 should change the attribution `<aside>` layout from responsive two-column to a single-column stack so the author and company cards each span the full article width.
-- Markdown rendering:
-  - `rust-backend/src/html/markdown.rs` converts markdown to sanitized HTML and wraps it in `.article-prose`.
-  - `assets/styles/input.css` defines Tailwind component styles; generated CSS is committed in `public/assets/app.css` after `npm run build:css`.
-  - Issue #226 should style `.article-prose h1`, `.article-prose h2`, and `.article-prose h3` so rendered markdown headings are visually distinct after Tailwind base resets.
+  - It is intentionally out of scope; the header logo should continue linking to the blog home page unless the issue explicitly says otherwise.
+- Layout/rendering:
+  - `rust-backend/templates/layout.html` includes the footer partial on every public/admin page, so changing the partial applies globally without touching Rust context structs or shared types.
 - Tests/build:
-  - Use plain Rust backend tooling (`cargo test --manifest-path rust-backend/Cargo.toml`) and CSS generation (`npm run build:css`).
-  - Existing markdown tests already verify `#` becomes `<h1>`; add/adjust tests only if implementation changes renderer behavior.
+  - Existing HTML rendering tests live under `rust-backend/src/html/mod.rs`.
+  - If there is an assertion expecting the footer logo link to be `/`, update it to expect `https://ideavibes.ai/`.
+  - Validate with the plain Rust backend build/test path (`cargo build --manifest-path rust-backend/Cargo.toml` or `npm run backend:test`). No Tailwind rebuild is needed because the change is an href only.
 
 Dependencies between issues
-- #224 is independent and can be implemented first because it touches shared partials only.
-- #225 and #227 both edit `rust-backend/templates/public/post.html`; apply sequentially to avoid small template conflicts.
-- #226 depends conceptually on the existing `.article-prose` wrapper from `markdown.rs`, but does not require renderer changes unless malformed markdown support is explicitly requested.
-- CSS changes for #226 require regenerating `public/assets/app.css`; template-only issues do not require CSS rebuild unless new Tailwind classes are introduced that are not already emitted.
+- This batch contains only Issue #232.
+- It builds on prior logo sizing work but does not depend on additional CSS, database, storage, auth, or routing changes.
+- The footer-only change is independent of post rendering, Markdown rendering, and attribution-card layout.
 
 Key design decisions
-- Product brand remains Ideavibes as used in the existing templates and issue text.
-- Prefer minimal template class changes over adding new components for one-off sizing/layout tweaks.
-- Keep markdown sanitization in Rust unchanged for security; solve heading presentation in CSS, not by injecting classes into user-authored markdown HTML.
-- Use repo-native Tailwind component styles for article prose headings so future markdown content automatically renders `#`, `##`, and `###` consistently.
-- Make the author/company cards full-width by removing the medium-screen two-column grid rather than duplicating card markup or changing backend context types.
+- Product brand remains Ideavibes as stated by the issue and existing templates.
+- Use a normal absolute URL with trailing slash: `https://ideavibes.ai/`.
+- Keep the hosted logo image `src`, `alt`, dimensions, and display classes unchanged.
+- Avoid adding `target="_blank"` unless explicitly requested; the issue only asks to link to the URL.
