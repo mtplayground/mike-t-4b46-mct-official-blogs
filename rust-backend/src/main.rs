@@ -542,9 +542,8 @@ fn post_card_context_from_post(post: &posts::PublicPost) -> html::public::PostCa
         category_name: post.category.name.clone(),
         published_at_label: post.published_at.map(format_date).unwrap_or_default(),
         cover_image_url: post
-            .square_cover_image_url
-            .clone()
-            .or_else(|| post.cover_image_url.clone()),
+            .cover_image_url
+            .clone(),
     }
 }
 
@@ -597,6 +596,7 @@ mod tests {
         Router,
     };
     use chrono::NaiveDateTime;
+    use crate::models::{CategorySlug, PostStatus};
     use sqlx::Row;
     use tower::ServiceExt;
 
@@ -613,6 +613,55 @@ mod tests {
             "https://example.test/blog/post"
         );
         assert_eq!(format_date(published_at), "July 17, 2026");
+    }
+
+    #[test]
+    fn post_card_context_uses_sixteen_by_nine_cover_when_square_cover_exists() {
+        let published_at = NaiveDateTime::parse_from_str(
+            "2026-07-17 13:45:00",
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("valid test datetime");
+        let post = posts::PublicPost {
+            id: "post-1".to_owned(),
+            title: "Post title".to_owned(),
+            slug: "post-title".to_owned(),
+            excerpt: "Post excerpt.".to_owned(),
+            body: "Post body.".to_owned(),
+            cover_image_key: Some("post-images/2026/07/cover.png".to_owned()),
+            cover_image_url: Some("https://example.test/cover-16x9.png".to_owned()),
+            square_cover_image_key: Some("post-images/2026/07/square.png".to_owned()),
+            square_cover_image_url: Some("https://example.test/cover-1x1.png".to_owned()),
+            is_featured: true,
+            views: 0,
+            author_name: "Alex Writer".to_owned(),
+            author_intro: "Writes about shipping.".to_owned(),
+            author_avatar_key: None,
+            author_avatar_url: None,
+            company_name: posts::DEFAULT_COMPANY_NAME.to_owned(),
+            company_intro: String::new(),
+            company_logo_key: None,
+            company_logo_url: posts::DEFAULT_COMPANY_LOGO_URL.to_owned(),
+            company_website_url: posts::DEFAULT_COMPANY_WEBSITE_URL.to_owned(),
+            status: PostStatus::Published,
+            published_at: Some(published_at),
+            category_id: "cat-1".to_owned(),
+            category: posts::CategorySummary {
+                id: "cat-1".to_owned(),
+                slug: CategorySlug::Thoughts,
+                name: "Thoughts".to_owned(),
+                description: None,
+            },
+            created_at: published_at,
+            updated_at: published_at,
+        };
+
+        let context = post_card_context_from_post(&post);
+
+        assert_eq!(
+            context.cover_image_url.as_deref(),
+            Some("https://example.test/cover-16x9.png")
+        );
     }
 
     fn multipart_body(boundary: &str, fields: &[(&str, &str)]) -> String {
