@@ -35,6 +35,7 @@ mod tests {
         let html = public::render_home_page(page).expect("home page should render");
 
         assert!(html.contains(r#"<link rel="stylesheet" href="/assets/app.css">"#));
+        assert!(html.contains(r#"<link rel="icon" href="/favicon.svg" type="image/svg+xml">"#));
         assert!(html.contains(r#"src="https://ideavibes.ai/logo.png""#));
         assert!(html.contains(r#"alt="Ideavibes""#));
         assert!(html.contains("From idea to product."));
