@@ -78,7 +78,7 @@ fn public_nav_links() -> Vec<NavLink> {
     vec![
         NavLink {
             href: "/".to_owned(),
-            label: "Blog".to_owned(),
+            label: "Home".to_owned(),
         },
         NavLink {
             href: "/admin/login".to_owned(),
