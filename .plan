@@ -1,48 +1,20 @@
-Architecture plan for issues #208-#210
+Architecture plan for issues #214-#216
 
-Goal
-- Apply a small brand/content refresh to the existing Rust Axum + Askama server-rendered blog without changing routing, data models, storage behavior, or deployment shape.
-- Keep visual brand assets and text/SEO copy consistent across the header, footer, favicon, homepage, and template tests.
+Current module structure
+- Runtime is a single Rust Axum server in `rust-backend/src/main.rs` with server-rendered Askama templates from `rust-backend/templates/`.
+- Public post loading and image URL mapping live in `rust-backend/src/posts/mod.rs`; page-specific view contexts are assembled in `rust-backend/src/main.rs` and rendered by `rust-backend/src/html/public.rs` plus templates under `rust-backend/templates/public/` and `rust-backend/templates/partials/`.
+- Admin post creation/editing/publishing lives in `rust-backend/src/posts/admin.rs`; admin form view-state lives in `rust-backend/src/html/admin.rs`; form markup is `rust-backend/templates/admin/post_form.html`.
+- Static committed assets are served from `public/` by Axum. Ideavibes logo usage currently points at `public/images/ideavibes-wordmark.svg` for header/footer and `public/images/ideavibes-mark.svg` for fallback company-card logo.
+- PostgreSQL schema keeps both `cover_image_key` and `square_cover_image_key`; runtime stores relative S3 object keys and signs/proxies them through `rust-backend/src/storage/mod.rs`.
 
-Current relevant structure
-- `public/images/`
-  - `ideavibes-wordmark.svg`: source logo used by the shared header/footer templates.
-  - `ideavibes-mark.svg`: standalone brand mark asset.
-- `public/favicon.ico`
-  - Browser favicon currently served by Axum through `ServeFile` at `/favicon.ico`.
-- `rust-backend/templates/layout.html`
-  - Shared HTML shell and favicon/link metadata location if `favicon.svg` is added.
-- `rust-backend/templates/partials/header.html`
-  - Shared top navigation logo image reference.
-- `rust-backend/templates/partials/footer.html`
-  - Shared footer logo image reference and tagline copy.
-- `rust-backend/templates/public/home.html`
-  - Homepage sections, including the intro block targeted by #209.
-- `rust-backend/src/main.rs`
-  - Public route handlers and homepage context strings passed into Askama templates.
-- `rust-backend/src/html/seo.rs`
-  - Default site description/SEO fallback copy.
-- `rust-backend/src/html/mod.rs`
-  - Rendering tests/fixtures that assert shared layout and homepage/footer copy.
+Issue dependency map
+- #214 (logo assets) is independent of the image-ratio behavior. It should update/replace committed files under `public/images/` and any tests/snapshots that assert logo markup, without changing routes or storage behavior.
+- #215 (always use 16:9 cover for post cards) depends on public rendering only. The key call site is `post_card_context_from_post` in `rust-backend/src/main.rs`, which currently prefers `square_cover_image_url` and falls back to `cover_image_url`. It should use only `cover_image_url` for cards. The template already renders cards with `aspect-[16/9]`, so no card markup refactor should be needed.
+- #216 (remove 1:1 cover requirement from admin publishing) is the natural follow-up to #215. Admin can continue preserving existing `square_cover_image_key` data for backward compatibility, but publishing validation and admin copy/form requirements must no longer require a square cover.
 
-Issue dependency order
-1. #208 Use the Ideavibes logo image and a sail-only favicon
-   - Update static brand assets first because header/footer references already point at the shared SVG path.
-   - Regenerate `public/favicon.ico` from the sail-only mark; optionally add `public/favicon.svg` and link it from `layout.html`.
-   - Verify header/footer still reference the correct wordmark path and dimensions/alt text remain appropriate.
-2. #209 Remove the homepage intro block
-   - Remove the hero intro markup from `home.html`.
-   - Clear or stop populating the corresponding `heading` and `intro` strings in `main.rs` for consistency with the template.
-   - Update rendering tests in `html/mod.rs` so they no longer expect the removed intro copy.
-3. #210 Change the tagline to "From idea to product."
-   - Change the footer copy in `partials/footer.html`.
-   - Update `DEFAULT_DESCRIPTION` in `html/seo.rs` to the same sentence so visible copy and metadata stay aligned.
-   - Adjust any tests/fixtures asserting the previous tagline.
-
-Shared design decisions
-- Keep the product/brand name exactly as provided by the issues: Ideavibes / ideavibes. Do not introduce agent/platform placeholder names.
-- Prefer static asset replacement over template rewiring: keep `/images/ideavibes-wordmark.svg` and `/images/ideavibes-mark.svg` stable unless the issue explicitly requires an additional favicon link.
-- The favicon mark should be sail-only: no wordmark, no red dot, no background. The full wordmark remains only in `ideavibes-wordmark.svg` for header/footer use.
-- Keep Askama contexts small and compatible. If `heading`/`intro` become unused after #209, remove them from homepage context structs only if tests and handlers can be updated in that issue without broad churn; otherwise clear the strings and leave structural cleanup for the same issue.
-- Preserve Axum static serving and proxy-aware deployment behavior; these issues should not alter route topology, database access, auth, object storage, newsletter flows, or admin forms.
-- Run the existing validation for each implementation session: CSS build, Rust backend build/tests, and targeted rendered-HTML assertions.
+Key design decisions
+- Keep the database schema backward-compatible initially: do not drop `square_cover_image_key` in these issues unless explicitly requested. Existing data can remain, but new public behavior should ignore it for post cards and publishing should not require it.
+- Minimize public-card change to the view-context mapping rather than the DB query/model, because article pages and legacy API responses may still expose square-cover fields for compatibility.
+- For #216, remove or relax validation in both save-time `validate_form` and dashboard publish-time `validate_publishable`; both paths currently enforce square image presence. Also update admin form text/tests so editors understand only the 16:9 cover is required.
+- Preserve existing storage conventions: uploads remain S3-backed relative keys with `OBJECT_STORAGE_PREFIX` prepended in the storage wrapper. Do not introduce local file storage or public bucket URLs.
+- Quality gates for implementation sessions: run `npm run backend:test`; run `npm run build` after template/CSS changes; run Playwright e2e only when admin publishing behavior is touched and environment is available.
