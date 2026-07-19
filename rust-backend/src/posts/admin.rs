@@ -613,7 +613,7 @@ async fn parse_image_field(
 
 fn validate_form(
     form: &mut PostForm,
-    is_update: bool,
+    _is_update: bool,
     existing: Option<&AdminPost>,
 ) -> Result<(), AppError> {
     if form.title.is_empty() {
@@ -646,22 +646,9 @@ fn validate_form(
             "Company intro must be 500 characters or fewer.",
         ));
     }
-    if form.cover_image.is_some() && form.square_cover_image.is_none() {
-        return Err(AppError::BadRequest(if is_update {
-            "Upload both 16:9 and 1:1 cover images before saving a new cover image."
-        } else {
-            "Upload both 16:9 and 1:1 cover images before saving."
-        }));
-    }
     if form.status == PostStatus::Published {
         let has_cover = form.cover_image.is_some()
             || existing.and_then(|p| p.cover_image_key.as_ref()).is_some() && !form.remove_cover;
-        let has_square = form.square_cover_image.is_some()
-            || existing
-                .and_then(|p| p.square_cover_image_key.as_ref())
-                .is_some()
-                && !form.remove_cover
-                && !form.remove_square_cover;
         let has_avatar = form.author_avatar.is_some()
             || existing
                 .and_then(|p| p.author_avatar_key.as_ref())
@@ -670,11 +657,6 @@ fn validate_form(
         if !has_cover {
             return Err(AppError::BadRequest(
                 "Cover image is required before publishing.",
-            ));
-        }
-        if !has_square {
-            return Err(AppError::BadRequest(
-                "Square cover image is required before publishing.",
             ));
         }
         if form.author_name.trim().is_empty() {
@@ -712,11 +694,6 @@ fn validate_publishable(post: &AdminPost) -> Result<(), AppError> {
     if post.cover_image_key.is_none() {
         return Err(AppError::BadRequest(
             "Cover image is required before publishing.",
-        ));
-    }
-    if post.square_cover_image_key.is_none() {
-        return Err(AppError::BadRequest(
-            "Square cover image is required before publishing.",
         ));
     }
     if post.author_name.trim().is_empty() {
@@ -1020,9 +997,7 @@ mod tests {
 
         let mut post = publishable_post();
         post.square_cover_image_key = None;
-        assert!(
-            matches!(validate_publishable(&post), Err(AppError::BadRequest(message)) if message.contains("Square cover"))
-        );
+        assert!(validate_publishable(&post).is_ok());
 
         let mut post = publishable_post();
         post.author_name.clear();
@@ -1094,11 +1069,6 @@ mod tests {
                 content_type: "image/png".to_owned(),
                 original_filename: None,
             }),
-            square_cover_image: Some(ImageUpload {
-                body: vec![1],
-                content_type: "image/png".to_owned(),
-                original_filename: None,
-            }),
             author_avatar: Some(ImageUpload {
                 body: vec![1],
                 content_type: "image/png".to_owned(),
@@ -1122,11 +1092,6 @@ mod tests {
             company_intro: "  ".to_owned(),
             status: PostStatus::Published,
             cover_image: Some(ImageUpload {
-                body: vec![1],
-                content_type: "image/png".to_owned(),
-                original_filename: None,
-            }),
-            square_cover_image: Some(ImageUpload {
                 body: vec![1],
                 content_type: "image/png".to_owned(),
                 original_filename: None,
@@ -1162,11 +1127,6 @@ mod tests {
                 content_type: "image/png".to_owned(),
                 original_filename: None,
             }),
-            square_cover_image: Some(ImageUpload {
-                body: vec![1],
-                content_type: "image/png".to_owned(),
-                original_filename: None,
-            }),
             author_avatar: Some(ImageUpload {
                 body: vec![1],
                 content_type: "image/png".to_owned(),
@@ -1194,11 +1154,6 @@ mod tests {
             company_website_url: crate::posts::DEFAULT_COMPANY_WEBSITE_URL.to_owned(),
             status: PostStatus::Published,
             cover_image: Some(ImageUpload {
-                body: vec![1],
-                content_type: "image/png".to_owned(),
-                original_filename: None,
-            }),
-            square_cover_image: Some(ImageUpload {
                 body: vec![1],
                 content_type: "image/png".to_owned(),
                 original_filename: None,
