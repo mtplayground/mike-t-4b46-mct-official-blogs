@@ -118,6 +118,7 @@ fn build_router(state: AppState) -> Router {
         .route("/sitemap.xml", get(sitemap_xml))
         .route("/robots.txt", get(robots_txt))
         .route_service("/favicon.ico", ServeFile::new(app_path("public/favicon.ico")))
+        .route_service("/favicon.svg", ServeFile::new(app_path("public/favicon.svg")))
         .nest_service("/assets", ServeDir::new(app_path("public/assets")))
         .nest_service("/images", ServeDir::new(app_path("public/images")))
         .route("/health", get(health))
