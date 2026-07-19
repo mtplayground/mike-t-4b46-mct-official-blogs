@@ -8,9 +8,9 @@ Ideavibes is a production-ready editorial publishing app for official updates, p
 - The homepage hero CTA is labeled `Read article`; the former secondary `Browse articles` CTA has been removed.
 - Legacy blog index, pagination, and category listing routes redirect to `/`; individual article routes at `/blog/[slug]` remain public.
 - Article detail pages render the post category/date/title/excerpt, optional signed cover image, GitHub-flavored Markdown body content with themed typography/components, signed `storage:` inline images, and an author block with signed avatar, name, and intro.
-- Article company cards default to Ideavibes name, website, and committed mark asset when legacy posts have no company-card values.
+- Article company cards default to the Ideavibes name, website, and hosted logo URL when legacy posts have no company-card values.
 - Newsletter signup in the footer includes client validation, duplicate handling, and PostgreSQL persistence.
-- Public header and footer use the committed Ideavibes logo/wordmark asset from `/images/ideavibes-wordmark.svg`.
+- Public header and footer use the hosted Ideavibes logo image from `https://ideavibes.ai/logo.png`.
 - Public header/footer navigation includes Home and Admin entry points; the Admin link goes directly to the login screen so anonymous readers see a coherent auth page instead of a protected-route transition.
 - Footer category labels are clickable links: Thoughts → `/blog/category/thoughts`, Product Progress → `/blog/category/product-progress`, and Announcements → `/blog/category/announcements`.
 - Admin area is protected by configured admin credentials and a signed HTTP-only cookie session; `ADMIN_USERNAME`/`ADMIN_PASSWORD` are used when provided together, otherwise credentials are deterministically derived from `JWT_SECRET`. Login trims surrounding whitespace before constant-time comparison, and production admin auth redirects use `SELF_URL` as the canonical HTTPS origin.

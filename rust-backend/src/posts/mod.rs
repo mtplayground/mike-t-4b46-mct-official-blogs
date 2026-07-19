@@ -17,7 +17,7 @@ use crate::{
 
 pub(crate) const DEFAULT_COMPANY_NAME: &str = "Ideavibes";
 pub(crate) const DEFAULT_COMPANY_INTRO: &str = "";
-pub(crate) const DEFAULT_COMPANY_LOGO_URL: &str = "/images/ideavibes-mark.svg";
+pub(crate) const DEFAULT_COMPANY_LOGO_URL: &str = "https://ideavibes.ai/logo.png";
 pub(crate) const DEFAULT_COMPANY_WEBSITE_URL: &str = "https://ideavibes.ai";
 
 #[derive(Debug, Clone, FromRow)]
