@@ -78,6 +78,8 @@ mod tests {
         assert!(html.contains("Alex Writer"));
         assert!(html.contains("Company"));
         assert!(html.contains("Acme Labs"));
+        assert!(html.contains(r#"<h1 class="text-heading-md">Article title</h1>"#));
+        assert!(!html.contains(r#"<h1 class="text-heading-lg">Article title</h1>"#));
         assert!(html.contains("42 views"));
         assert!(html.contains("<p>Rendered body</p>"));
     }
