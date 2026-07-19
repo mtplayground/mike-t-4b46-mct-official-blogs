@@ -1,17 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="190" height="48" viewBox="0 0 190 48" role="img" aria-labelledby="title">
   <title id="title">Ideavibes</title>
   <defs>
-    <linearGradient id="ideavibes-mark" x1="6" x2="42" y1="42" y2="6" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FF5A3C"/>
-      <stop offset="0.52" stop-color="#FFB84D"/>
-      <stop offset="1" stop-color="#6C5CE7"/>
+    <linearGradient id="ideavibes-wordmark-sail" x1="5" x2="42" y1="42" y2="5" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1A4DFF"/>
+      <stop offset="0.55" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#5EC8FF"/>
     </linearGradient>
   </defs>
-  <rect width="190" height="48" fill="none"/>
-  <g>
-    <rect x="3" y="3" width="42" height="42" rx="12" fill="#161024"/>
-    <path d="M14 29.5c5.7-11 14.2-16.1 25.5-15.3-8.9 3.7-14.9 10.4-18.2 20.3l-2.9-7.1-4.4 2.1Z" fill="url(#ideavibes-mark)"/>
-    <circle cx="32.5" cy="17.5" r="4.5" fill="#FFF6E5"/>
-  </g>
-  <text x="58" y="31" fill="#161024" font-family="Arial, Helvetica Neue, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">Ideavibes</text>
+  <path fill="url(#ideavibes-wordmark-sail)" d="M6.5 40.7 20.2 5.2c.5-1.4 2.5-1.4 3.1-.1l13.9 31.1c.7 1.6-.8 3.3-2.5 2.7l-11.9-4.4c-.8-.3-1.7-.3-2.5.1L8.9 42.8c-1.4 1.1-3-.4-2.4-2.1Z"/>
+  <path fill="#78D9FF" fill-opacity=".72" d="M22.2 6.6V34c0 .8.5 1.5 1.3 1.8l11.1 4.1c1 .4 1.8-.7 1.4-1.6L23.7 6.5c-.3-.9-1.5-.8-1.5.1Z"/>
+  <path fill="#0F3AD1" fill-opacity=".32" d="M7.2 41.4 20.6 6.7V34c0 .6-.3 1.2-.8 1.5L9 43.1c-1 .7-2.2-.4-1.8-1.7Z"/>
+  <text x="51" y="32.7" fill="#101B3F" font-family="Inter, Avenir Next, Arial, Helvetica, sans-serif" font-size="27" font-weight="800" letter-spacing="-.8">ıdeavıbes</text>
+  <circle cx="56.7" cy="12.2" r="2.35" fill="#FF4A3D"/>
+  <circle cx="136.9" cy="12.2" r="2.35" fill="#FF4A3D"/>
 </svg>
