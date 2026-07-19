@@ -38,6 +38,8 @@ mod tests {
         assert!(html.contains(r#"<link rel="icon" href="/favicon.svg" type="image/svg+xml">"#));
         assert!(html.contains(r#"src="https://ideavibes.ai/logo.png""#));
         assert!(html.contains(r#"alt="Ideavibes""#));
+        assert!(html.contains(r#"<a class="flex items-center" href="/" aria-label="Ideavibes home">"#));
+        assert!(html.contains(r#"<a class="flex items-center" href="https://ideavibes.ai/" target="_blank" rel="noopener noreferrer" aria-label="Ideavibes home">"#));
         assert!(html.contains("From idea to product."));
         assert!(!html.contains(r#"<p class="eyebrow">Official Blog</p>"#));
         assert!(!html.contains(r#"<h1 class="text-heading-lg">Official Blog</h1>"#));
