@@ -435,8 +435,8 @@ async fn public_home(
     let response = posts::fetch_public_post_list(&state).await?;
     let context = html::public::HomePageContext {
         seo: html::seo::SeoMetadata::home(&state.self_url),
-        heading: "Official Blog".to_owned(),
-        intro: "Practical notes on shipping software with AI-assisted teams.".to_owned(),
+        heading: String::new(),
+        intro: String::new(),
         newsletter_notice: newsletter_notice_from_query(query.newsletter.as_deref()),
         hero_post: response.hero_post.as_ref().map(post_card_context_from_post),
         posts: response.posts.iter().map(post_card_context_from_post).collect(),

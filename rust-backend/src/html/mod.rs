@@ -18,8 +18,8 @@ mod tests {
                 "Latest product and engineering updates.",
                 "https://example.test/",
             ),
-            heading: "Official Blog".to_owned(),
-            intro: "Latest product and engineering updates.".to_owned(),
+            heading: String::new(),
+            intro: String::new(),
             newsletter_notice: Some(public::NewsletterNotice::success("You are on the list.")),
             hero_post: None,
             posts: vec![public::PostCardContext {
@@ -37,6 +37,9 @@ mod tests {
         assert!(html.contains(r#"<link rel="stylesheet" href="/assets/app.css">"#));
         assert!(html.contains(r#"src="/images/ideavibes-wordmark.svg""#));
         assert!(html.contains(r#"alt="Ideavibes""#));
+        assert!(!html.contains(r#"<p class="eyebrow">Official Blog</p>"#));
+        assert!(!html.contains(r#"<h1 class="text-heading-lg">Official Blog</h1>"#));
+        assert!(!html.contains(r#"<p class="max-w-2xl text-lead text-editorial-muted">Latest product and engineering updates.</p>"#));
         assert!(html.contains("You are on the list."));
         assert!(html.contains("From Vibe Coding to Vibe Shipping"));
         assert!(html.contains(r#"href="/blog/from-vibe-coding-to-vibe-shipping""#));
