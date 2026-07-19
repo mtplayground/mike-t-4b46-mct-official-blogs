@@ -1,20 +1,17 @@
-Architecture plan for issues #214-#216
+Architecture plan for Issue #220: Use the hosted Ideavibes logo URL
 
-Current module structure
-- Runtime is a single Rust Axum server in `rust-backend/src/main.rs` with server-rendered Askama templates from `rust-backend/templates/`.
-- Public post loading and image URL mapping live in `rust-backend/src/posts/mod.rs`; page-specific view contexts are assembled in `rust-backend/src/main.rs` and rendered by `rust-backend/src/html/public.rs` plus templates under `rust-backend/templates/public/` and `rust-backend/templates/partials/`.
-- Admin post creation/editing/publishing lives in `rust-backend/src/posts/admin.rs`; admin form view-state lives in `rust-backend/src/html/admin.rs`; form markup is `rust-backend/templates/admin/post_form.html`.
-- Static committed assets are served from `public/` by Axum. Ideavibes logo usage currently points at `public/images/ideavibes-wordmark.svg` for header/footer and `public/images/ideavibes-mark.svg` for fallback company-card logo.
-- PostgreSQL schema keeps both `cover_image_key` and `square_cover_image_key`; runtime stores relative S3 object keys and signs/proxies them through `rust-backend/src/storage/mod.rs`.
+Scope and module structure
+- Template layer: update the shared public branding in rust-backend/templates/partials/header.html and rust-backend/templates/partials/footer.html so both render the hosted Ideavibes logo image exactly as specified by the issue.
+- Domain/content defaults: update rust-backend/src/posts/mod.rs so DEFAULT_COMPANY_LOGO_URL points to https://ideavibes.ai/logo.png for legacy/company-card fallback rendering.
+- Test layer: update Rust HTML/template tests in rust-backend/src/html/mod.rs that currently assert committed SVG paths so they assert src="https://ideavibes.ai/logo.png" instead.
+- Product documentation: update PRODUCT.md to stop saying header/footer use committed /images/ideavibes-wordmark.svg and document the hosted logo URL instead.
 
-Issue dependency map
-- #214 (logo assets) is independent of the image-ratio behavior. It should update/replace committed files under `public/images/` and any tests/snapshots that assert logo markup, without changing routes or storage behavior.
-- #215 (always use 16:9 cover for post cards) depends on public rendering only. The key call site is `post_card_context_from_post` in `rust-backend/src/main.rs`, which currently prefers `square_cover_image_url` and falls back to `cover_image_url`. It should use only `cover_image_url` for cards. The template already renders cards with `aspect-[16/9]`, so no card markup refactor should be needed.
-- #216 (remove 1:1 cover requirement from admin publishing) is the natural follow-up to #215. Admin can continue preserving existing `square_cover_image_key` data for backward compatibility, but publishing validation and admin copy/form requirements must no longer require a square cover.
+Dependencies between issues
+- There is only one issue in this batch. It has no dependencies and can be implemented directly.
+- The issue supersedes earlier generated/committed logo asset assumptions; no asset generation or SVG replacement should be performed.
 
 Key design decisions
-- Keep the database schema backward-compatible initially: do not drop `square_cover_image_key` in these issues unless explicitly requested. Existing data can remain, but new public behavior should ignore it for post cards and publishing should not require it.
-- Minimize public-card change to the view-context mapping rather than the DB query/model, because article pages and legacy API responses may still expose square-cover fields for compatibility.
-- For #216, remove or relax validation in both save-time `validate_form` and dashboard publish-time `validate_publishable`; both paths currently enforce square image presence. Also update admin form text/tests so editors understand only the 16:9 cover is required.
-- Preserve existing storage conventions: uploads remain S3-backed relative keys with `OBJECT_STORAGE_PREFIX` prepended in the storage wrapper. Do not introduce local file storage or public bucket URLs.
-- Quality gates for implementation sessions: run `npm run backend:test`; run `npm run build` after template/CSS changes; run Playwright e2e only when admin publishing behavior is touched and environment is available.
+- Use the product brand/name exactly from the issue: Ideavibes.
+- Do not regenerate, modify, or delete favicon assets; the sail-only favicon remains as-is.
+- Keep existing static public image serving in place for other committed assets, but stop referencing the old self-generated wordmark SVG for the main brand logo and company fallback.
+- Prefer minimal, localized edits in the named files, then run the existing Rust/backend tests and build checks.
