@@ -29,8 +29,6 @@
         <h2 class="text-heading-sm">Images</h2>
         <label class="grid gap-2 text-sm font-bold">16:9 cover image {% if has_cover_image %}<span class="font-normal text-editorial-muted">Current image saved.</span>{% endif %}<input name="coverImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
         {% if has_cover_image %}<label class="flex items-center gap-3 text-sm"><input name="removeCover" type="checkbox" value="yes"> Remove cover image</label>{% endif %}
-        <label class="grid gap-2 text-sm font-bold">1:1 cover image {% if has_square_cover_image %}<span class="font-normal text-editorial-muted">Current image saved.</span>{% endif %}<input name="squareCoverImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
-        {% if has_square_cover_image %}<label class="flex items-center gap-3 text-sm"><input name="removeSquareCover" type="checkbox" value="yes"> Remove square cover image</label>{% endif %}
         <label class="grid gap-2 text-sm font-bold">Author avatar {% if has_author_avatar %}<span class="font-normal text-editorial-muted">Current image saved.</span>{% endif %}<input name="authorAvatar" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
         {% if has_author_avatar %}<label class="flex items-center gap-3 text-sm"><input name="removeAuthorAvatar" type="checkbox" value="yes"> Remove author avatar</label>{% endif %}
         <label class="grid gap-2 text-sm font-bold">Company logo {% if has_company_logo %}<span class="font-normal text-editorial-muted">Current image saved.</span>{% endif %}<input name="companyLogo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
