@@ -1,17 +1,17 @@
-Architecture plan for Issue #220: Use the hosted Ideavibes logo URL
+Architecture plan for Issue #222: Use the logo's sail shape for the favicon
 
 Scope and module structure
-- Template layer: update the shared public branding in rust-backend/templates/partials/header.html and rust-backend/templates/partials/footer.html so both render the hosted Ideavibes logo image exactly as specified by the issue.
-- Domain/content defaults: update rust-backend/src/posts/mod.rs so DEFAULT_COMPANY_LOGO_URL points to https://ideavibes.ai/logo.png for legacy/company-card fallback rendering.
-- Test layer: update Rust HTML/template tests in rust-backend/src/html/mod.rs that currently assert committed SVG paths so they assert src="https://ideavibes.ai/logo.png" instead.
-- Product documentation: update PRODUCT.md to stop saying header/footer use committed /images/ideavibes-wordmark.svg and document the hosted logo URL instead.
+- Static asset layer: update public/favicon.svg and public/images/ideavibes-mark.svg to the same sail-only Ideavibes mark: no wordmark, no red dot, no background.
+- Binary favicon asset: regenerate public/favicon.ico from the same sail-only source so browser ICO fallback matches the SVG favicon and is not stale.
+- Template/layout layer: keep rust-backend/templates/layout.html favicon links unchanged; the issue explicitly says the existing /favicon.ico and /favicon.svg links should remain as-is.
+- Test layer: update rust-backend/src/html/mod.rs tests to assert the shared layout includes the /favicon.svg link.
 
 Dependencies between issues
-- There is only one issue in this batch. It has no dependencies and can be implemented directly.
-- The issue supersedes earlier generated/committed logo asset assumptions; no asset generation or SVG replacement should be performed.
+- This batch contains only Issue #222.
+- It depends on the previous hosted header/footer logo behavior staying intact: do not change the hosted header/footer logo URL introduced by Issue #220.
 
 Key design decisions
-- Use the product brand/name exactly from the issue: Ideavibes.
-- Do not regenerate, modify, or delete favicon assets; the sail-only favicon remains as-is.
-- Keep existing static public image serving in place for other committed assets, but stop referencing the old self-generated wordmark SVG for the main brand logo and company fallback.
-- Prefer minimal, localized edits in the named files, then run the existing Rust/backend tests and build checks.
+- Product branding is Ideavibes, exactly as named in the issue.
+- Use a repo-native SVG edit for the sail mark instead of generating a new wordmark or adding background/red-dot elements.
+- Treat the SVG sail mark as the source of truth, and regenerate favicon.ico from it.
+- Limit code changes to tests/layout assertions; no routing, API, database, auth, storage, or environment behavior changes are needed.
