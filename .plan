@@ -1,37 +1,48 @@
-Architecture plan for issues #198-#202
+Architecture plan for issues #208-#210
 
 Goal
-- Finish the existing myClawTeam-to-Ideavibes rebrand across styling, visible brand surfaces, SEO metadata, company-card defaults, docs, and package metadata while preserving the current Rust Axum server-rendered blog architecture.
-- Product brand/name source of truth for this batch is the GitHub issues: Ideavibes.
+- Apply a small brand/content refresh to the existing Rust Axum + Askama server-rendered blog without changing routing, data models, storage behavior, or deployment shape.
+- Keep visual brand assets and text/SEO copy consistent across the header, footer, favicon, homepage, and template tests.
 
-Current project shape
-- Rust Axum backend in `rust-backend/src` renders Askama-style HTML templates from `rust-backend/templates`.
-- Tailwind source lives in `assets/styles/input.css`, with theme tokens in `tailwind.config.ts` and compiled output in `public/assets/app.css`.
-- Public brand surfaces are mainly `rust-backend/templates/partials/header.html`, `rust-backend/templates/partials/footer.html`, public templates, and SEO helpers in `rust-backend/src/html/seo.rs`.
-- Company-card data flows through `rust-backend/src/posts/mod.rs`, `rust-backend/src/posts/admin.rs`, `rust-backend/src/html/admin.rs`, `rust-backend/src/html/public.rs`, Prisma schema defaults, and tests.
-- Docs and metadata touch `README.md`, `PRODUCT.md`, `.env.example`, `package.json`, and possibly test fixtures.
+Current relevant structure
+- `public/images/`
+  - `ideavibes-wordmark.svg`: source logo used by the shared header/footer templates.
+  - `ideavibes-mark.svg`: standalone brand mark asset.
+- `public/favicon.ico`
+  - Browser favicon currently served by Axum through `ServeFile` at `/favicon.ico`.
+- `rust-backend/templates/layout.html`
+  - Shared HTML shell and favicon/link metadata location if `favicon.svg` is added.
+- `rust-backend/templates/partials/header.html`
+  - Shared top navigation logo image reference.
+- `rust-backend/templates/partials/footer.html`
+  - Shared footer logo image reference and tagline copy.
+- `rust-backend/templates/public/home.html`
+  - Homepage sections, including the intro block targeted by #209.
+- `rust-backend/src/main.rs`
+  - Public route handlers and homepage context strings passed into Askama templates.
+- `rust-backend/src/html/seo.rs`
+  - Default site description/SEO fallback copy.
+- `rust-backend/src/html/mod.rs`
+  - Rendering tests/fixtures that assert shared layout and homepage/footer copy.
 
-Module structure and file organization
-- Keep brand constants centralized where the existing code already has stable boundaries:
-  - `rust-backend/src/html/seo.rs`: site name, default description, publisher JSON-LD values, canonical/metadata helpers.
-  - `rust-backend/src/posts/mod.rs`: public fallback company-card defaults for legacy posts.
-  - `rust-backend/src/posts/admin.rs` and `rust-backend/src/html/admin.rs`: admin form defaults for newly authored posts.
-- Keep visual tokens in `tailwind.config.ts`; do not duplicate palette hex values in templates unless a specific asset requires it.
-- Header/footer logo and wordmark should be template-level partial changes, ideally using a stable public asset path under `public/images` if an Ideavibes logo asset is added or already exists.
-- Leave database migrations append-only. Update current Prisma defaults for future generated clients and runtime code defaults, but do not rewrite old migration history unless an issue explicitly asks for migration surgery.
-- Tests should stay near the behavior they protect: Rust unit tests beside SEO/post default logic, Playwright tests for rendered public/admin brand surfaces if existing e2e coverage is touched.
+Issue dependency order
+1. #208 Use the Ideavibes logo image and a sail-only favicon
+   - Update static brand assets first because header/footer references already point at the shared SVG path.
+   - Regenerate `public/favicon.ico` from the sail-only mark; optionally add `public/favicon.svg` and link it from `layout.html`.
+   - Verify header/footer still reference the correct wordmark path and dimensions/alt text remain appropriate.
+2. #209 Remove the homepage intro block
+   - Remove the hero intro markup from `home.html`.
+   - Clear or stop populating the corresponding `heading` and `intro` strings in `main.rs` for consistency with the template.
+   - Update rendering tests in `html/mod.rs` so they no longer expect the removed intro copy.
+3. #210 Change the tagline to "From idea to product."
+   - Change the footer copy in `partials/footer.html`.
+   - Update `DEFAULT_DESCRIPTION` in `html/seo.rs` to the same sentence so visible copy and metadata stay aligned.
+   - Adjust any tests/fixtures asserting the previous tagline.
 
-Dependencies between issues
-1. #198 Tailwind palette is the visual foundation. It should land before header/footer visual polish so classes and colors are available.
-2. #199 Header/footer logo and wordmark depend on the final palette tokens and should avoid hard-coded old brand copy.
-3. #200 SEO metadata and page copy can proceed in parallel with #199 but must use the same Ideavibes naming and URL decisions.
-4. #201 Company-card defaults should follow #200's naming conventions and update both runtime fallbacks and admin defaults together.
-5. #202 Docs and package metadata should be last, after code-level naming and URLs are settled, so documentation reflects the final implementation.
-
-Key design decisions
-- Use Ideavibes consistently as the brand name. Do not introduce alternate names or placeholders.
-- Prefer central constants over scattered string replacements where code already has semantic defaults, especially for SEO and company-card behavior.
-- Preserve existing routes, form fields, database column names, and public behavior unless a rebrand issue specifically requires a visible text, default, or asset change.
-- Keep URL changes conservative. Replace `myclawteam.ai` only where the issue implementation establishes an Ideavibes URL/logo source; otherwise record the unresolved decision in the issue session instead of guessing.
-- Regenerate `public/assets/app.css` after palette changes and verify the Rust backend build/tests relevant to each issue.
-- Because the app runs behind Ideavibes' reverse proxy, any future origin/canonical work must continue honoring `X-Forwarded-Host` and `X-Forwarded-Proto` rather than raw `Host`.
+Shared design decisions
+- Keep the product/brand name exactly as provided by the issues: Ideavibes / ideavibes. Do not introduce agent/platform placeholder names.
+- Prefer static asset replacement over template rewiring: keep `/images/ideavibes-wordmark.svg` and `/images/ideavibes-mark.svg` stable unless the issue explicitly requires an additional favicon link.
+- The favicon mark should be sail-only: no wordmark, no red dot, no background. The full wordmark remains only in `ideavibes-wordmark.svg` for header/footer use.
+- Keep Askama contexts small and compatible. If `heading`/`intro` become unused after #209, remove them from homepage context structs only if tests and handlers can be updated in that issue without broad churn; otherwise clear the strings and leave structural cleanup for the same issue.
+- Preserve Axum static serving and proxy-aware deployment behavior; these issues should not alter route topology, database access, auth, object storage, newsletter flows, or admin forms.
+- Run the existing validation for each implementation session: CSS build, Rust backend build/tests, and targeted rendered-HTML assertions.
