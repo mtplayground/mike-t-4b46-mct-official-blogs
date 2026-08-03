@@ -5,7 +5,7 @@
     </a>
     <nav class="flex items-center gap-5 text-sm font-bold text-editorial-muted" aria-label="Primary navigation">
       {% for link in nav_links %}
-        <a class="transition hover:text-editorial-red" href="{{ link.href }}">{{ link.label }}</a>
+        <a class="transition hover:text-editorial-red" href="{{ link.href }}"{% if link.opens_new_tab %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ link.label }}</a>
       {% endfor %}
     </nav>
   </div>

@@ -300,18 +300,22 @@ fn admin_nav_links() -> Vec<NavLink> {
         NavLink {
             href: "/admin".to_owned(),
             label: "Posts".to_owned(),
+            opens_new_tab: false,
         },
         NavLink {
             href: "/admin/posts/new".to_owned(),
             label: "New post".to_owned(),
+            opens_new_tab: false,
         },
         NavLink {
             href: "/admin/subscribers".to_owned(),
             label: "Subscribers".to_owned(),
+            opens_new_tab: false,
         },
         NavLink {
             href: "/".to_owned(),
             label: "View blog".to_owned(),
+            opens_new_tab: false,
         },
     ]
 }
