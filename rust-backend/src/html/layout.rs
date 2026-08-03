@@ -6,6 +6,7 @@ use super::seo::SeoMetadata;
 pub(crate) struct NavLink {
     pub(crate) href: String,
     pub(crate) label: String,
+    pub(crate) opens_new_tab: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,12 +78,14 @@ pub(crate) fn render_layout(
 fn public_nav_links() -> Vec<NavLink> {
     vec![
         NavLink {
-            href: "/".to_owned(),
+            href: "https://ideavibes.ai".to_owned(),
             label: "Home".to_owned(),
+            opens_new_tab: true,
         },
         NavLink {
             href: "/admin/login".to_owned(),
             label: "Admin".to_owned(),
+            opens_new_tab: false,
         },
     ]
 }
