@@ -37,10 +37,11 @@ mod tests {
         assert!(html.contains(r#"<link rel="stylesheet" href="/assets/app.css">"#));
         assert!(html.contains(r#"<link rel="icon" href="/favicon.svg" type="image/svg+xml">"#));
         assert!(html.contains(r#"src="https://ideavibes.ai/logo.png""#));
-        assert!(html.contains(r#"alt="Ideavibes""#));
-        assert!(html.contains(r#"<a class="flex items-center" href="/" aria-label="Ideavibes home">"#));
+        assert!(html.contains(r#"alt="ideavibes blog""#));
+        assert!(html.contains(r#"<a class="flex items-center gap-2" href="/" aria-label="ideavibes blog">"#));
+        assert!(html.contains(r#"<span class="text-xl font-bold text-editorial-ink">blog</span>"#));
         assert!(html.contains(r#"<a class="transition hover:text-editorial-red" href="https://ideavibes.ai" target="_blank" rel="noopener noreferrer">Home</a>"#));
-        assert!(html.contains(r#"<a class="flex items-center" href="https://ideavibes.ai/" target="_blank" rel="noopener noreferrer" aria-label="Ideavibes home">"#));
+        assert!(html.contains(r#"<a class="flex items-center gap-2" href="https://ideavibes.ai/" target="_blank" rel="noopener noreferrer" aria-label="ideavibes blog">"#));
         assert!(html.contains("From idea to product."));
         assert!(!html.contains(r#"<p class="eyebrow">Official Blog</p>"#));
         assert!(!html.contains(r#"<h1 class="text-heading-lg">Official Blog</h1>"#));
