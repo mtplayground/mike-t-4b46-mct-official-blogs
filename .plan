@@ -1,26 +1,20 @@
-Architecture plan for Issue #232: Link the footer logo to https://ideavibes.ai/
+Architecture plan for Issue #234: Point the header "Home" nav link to https://ideavibes.ai
 
 Scope and module structure
-- Shared footer partial:
-  - `rust-backend/templates/partials/footer.html` owns the footer logo, tagline, and newsletter form.
-  - Issue #232 should update only the footer logo anchor `href` from the local blog root (`/`) to the external Ideavibes homepage (`https://ideavibes.ai/`).
-- Header partial:
-  - `rust-backend/templates/partials/header.html` owns the top navigation logo.
-  - It is intentionally out of scope; the header logo should continue linking to the blog home page unless the issue explicitly says otherwise.
-- Layout/rendering:
-  - `rust-backend/templates/layout.html` includes the footer partial on every public/admin page, so changing the partial applies globally without touching Rust context structs or shared types.
-- Tests/build:
-  - Existing HTML rendering tests live under `rust-backend/src/html/mod.rs`.
-  - If there is an assertion expecting the footer logo link to be `/`, update it to expect `https://ideavibes.ai/`.
-  - Validate with the plain Rust backend build/test path (`cargo build --manifest-path rust-backend/Cargo.toml` or `npm run backend:test`). No Tailwind rebuild is needed because the change is an href only.
+- Shared layout/navigation code:
+  - `rust-backend/src/html/layout.rs` owns the shared `LayoutTemplate` context and constructs the header navigation links used by the Askama layout.
+  - `rust-backend/templates/partials/header.html` renders those `nav_links`; it should not need structural changes if the link data is updated in Rust.
+- Shared layout tests:
+  - `rust-backend/src/html/mod.rs` contains rendering assertions for the shared public layout/header/footer and should be updated to expect the external Home nav link.
+- No shared types, database schema, API routes, auth/session logic, object storage, or Tailwind styling changes are needed.
 
 Dependencies between issues
-- This batch contains only Issue #232.
-- It builds on prior logo sizing work but does not depend on additional CSS, database, storage, auth, or routing changes.
-- The footer-only change is independent of post rendering, Markdown rendering, and attribution-card layout.
+- This batch contains only Issue #234.
+- It is independent of footer logo/link behavior, post rendering, newsletter signup, admin flows, and SEO sitemap/breadcrumb helpers.
 
 Key design decisions
 - Product brand remains Ideavibes as stated by the issue and existing templates.
-- Use a normal absolute URL with trailing slash: `https://ideavibes.ai/`.
-- Keep the hosted logo image `src`, `alt`, dimensions, and display classes unchanged.
-- Avoid adding `target="_blank"` unless explicitly requested; the issue only asks to link to the URL.
+- Change only the header navigation item labeled `Home` so its `href` is `https://ideavibes.ai`.
+- Preserve the header logo link to the blog root `/` unless an issue explicitly requests changing it.
+- Keep the existing Askama partial loop and nav styling unchanged; use the existing `NavLink` data path for the href update.
+- Validate with the Rust backend tests (`npm run backend:test` or `cargo test --manifest-path rust-backend/Cargo.toml`).
