@@ -8,6 +8,7 @@ use std::{collections::HashMap, str::FromStr, time::Duration};
 pub type DbPool = PgPool;
 
 const MIGRATION_TABLE: &str = "_ideavibes_schema_migrations";
+const CONNECTIVITY_CHECK_SQL: &str = "SELECT 1";
 
 struct Migration {
     version: &'static str,
@@ -79,6 +80,15 @@ pub fn connect(database_url: &str) -> Result<DbPool, sqlx::Error> {
         .idle_timeout(Duration::from_secs(300))
         .max_lifetime(Duration::from_secs(1800))
         .connect_lazy_with(options))
+}
+
+/// Verifies that the pool can acquire a PostgreSQL connection and execute a query.
+///
+/// Pool construction is lazy, so this is intentionally used by the readiness endpoint
+/// instead of treating a cloned pool as proof that the database is available.
+pub async fn check_connectivity(pool: &DbPool) -> Result<(), sqlx::Error> {
+    sqlx::query(CONNECTIVITY_CHECK_SQL).execute(pool).await?;
+    Ok(())
 }
 
 /// Applies every committed schema migration before the HTTP server accepts traffic.
@@ -242,5 +252,10 @@ mod tests {
     #[test]
     fn migration_checksums_detect_sql_changes() {
         assert_ne!(migration_checksum("SELECT 1"), migration_checksum("SELECT 2"));
+    }
+
+    #[test]
+    fn connectivity_check_uses_a_lightweight_query() {
+        assert_eq!(CONNECTIVITY_CHECK_SQL, "SELECT 1");
     }
 }

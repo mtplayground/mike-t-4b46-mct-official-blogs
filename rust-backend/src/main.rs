@@ -586,10 +586,28 @@ fn month_name(month: u32) -> &'static str {
     }
 }
 
-async fn health(State(state): State<AppState>) -> Result<Json<HealthResponse<'static>>, AppError> {
-    let _pool = state.pool.clone();
+async fn health(State(state): State<AppState>) -> Response {
+    match db::check_connectivity(&state.pool).await {
+        Ok(()) => health_response(true),
+        Err(error) => {
+            tracing::error!(error = ?error, "database connectivity check failed");
+            health_response(false)
+        }
+    }
+}
 
-    Ok(Json(HealthResponse { status: "ok" }))
+fn health_response(database_available: bool) -> Response {
+    if database_available {
+        (StatusCode::OK, Json(HealthResponse { status: "ok" })).into_response()
+    } else {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(HealthResponse {
+                status: "database unavailable",
+            }),
+        )
+            .into_response()
+    }
 }
 
 #[cfg(test)]
@@ -604,6 +622,7 @@ mod tests {
     };
     use chrono::NaiveDateTime;
     use crate::models::{CategorySlug, PostStatus};
+    use sqlx::postgres::PgPoolOptions;
     use sqlx::Row;
     use tower::ServiceExt;
 
@@ -620,6 +639,49 @@ mod tests {
             "https://example.test/blog/post"
         );
         assert_eq!(format_date(published_at), "July 17, 2026");
+    }
+
+    #[tokio::test]
+    async fn health_reports_ready_and_database_unavailable_states() {
+        let ready = health_response(true);
+        assert_eq!(ready.status(), StatusCode::OK);
+        assert_eq!(response_text(ready).await, r#"{"status":"ok"}"#);
+
+        let unavailable = health_response(false);
+        assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_text(unavailable).await,
+            r#"{"status":"database unavailable"}"#
+        );
+    }
+
+    #[tokio::test]
+    async fn health_handler_rejects_an_unreachable_database_pool() {
+        let pool = PgPoolOptions::new()
+            .acquire_timeout(std::time::Duration::from_millis(100))
+            .connect_lazy("postgresql://postgres@127.0.0.1:1/health_check?sslmode=disable")
+            .expect("test database URL should be valid");
+        let state = AppState {
+            pool,
+            storage: StorageClient::for_tests("https://blog.example.com"),
+            admin: AdminCredentials {
+                username: "admin".to_owned(),
+                password: "secret".to_owned(),
+            },
+            revalidation: RevalidationConfig {
+                url: "https://blog.example.com/api/revalidate".to_owned(),
+                secret: "secret".to_owned(),
+            },
+            self_url: "https://blog.example.com".to_owned(),
+        };
+
+        let response = health(State(state)).await;
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_text(response).await,
+            r#"{"status":"database unavailable"}"#
+        );
     }
 
     #[test]
