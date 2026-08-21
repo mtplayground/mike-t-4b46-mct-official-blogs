@@ -84,6 +84,13 @@ async fn main() -> Result<(), AppError> {
         "Runtime configuration loaded"
     );
     let pool = db::connect(&config.database_url)?;
+    db::run_migrations(&pool).await.map_err(|error| {
+        tracing::error!(
+            error = ?error,
+            "Database migrations failed; refusing to start the HTTP server"
+        );
+        error
+    })?;
     let storage = StorageClient::from_config(&config.object_storage, &config.self_url).await;
     let app = build_router(AppState {
         pool,
