@@ -1,25 +1,30 @@
-Architecture plan for Issue #236: Show "ideavibes blog" as the header/footer brand lockup
+# Architecture plan: Issues #238 and #239
 
-Scope and module structure
-- Shared presentation templates:
-  - `rust-backend/templates/partials/header.html` owns the public header brand link and primary navigation rendering.
-  - `rust-backend/templates/partials/footer.html` owns the footer brand link, tagline, and newsletter form.
-  - Both partials currently render the hosted `https://ideavibes.ai/logo.png` image alone. The implementation should keep that image (`h-8 w-auto`) and add visible adjacent text so the lockup reads `ideavibes blog`.
-- Shared layout/render tests:
-  - `rust-backend/src/html/mod.rs` contains assertions for the rendered shared public layout. Update the assertions that expect `alt="Ideavibes"` and `aria-label="Ideavibes home"` to expect the new `ideavibes blog` accessibility text and visible wordmark.
-- CSS/design organization:
-  - Use existing Tailwind utility classes in the partials. No new stylesheet, Tailwind config, or component abstraction is needed for this small visual lockup change.
-- Out of scope:
-  - Do not change SEO site names, package names, binary names, database records, company-card defaults, routes, API handlers, auth/session logic, object storage, or navigation destinations.
+## Current structure
 
-Dependencies between issues
-- This batch contains only Issue #236.
-- It builds on prior layout behavior where the header logo links to `/` and the footer logo links to `https://ideavibes.ai/`; this issue changes the brand lockup content and accessibility labels only.
-- It is independent of post rendering, newsletter submission, admin workflows, sitemap/robots output, Markdown rendering, image uploads, and database migrations.
+- `rust-backend/src/main.rs` builds the Axum router, constructs the lazy SQLx PostgreSQL pool, and starts serving. `/health` currently only clones that pool, so it does not establish a database connection.
+- `rust-backend/src/db.rs` is the shared database boundary (`DbPool` alias plus connection-pool construction). It is the appropriate home for reusable migration and connectivity-check functions.
+- PostgreSQL schema changes are committed as ordered SQL files in `prisma/migrations/`; Prisma is not present at runtime. `scripts/start-sprite.sh` only loads environment and launches the release binary.
+- `AppError` in `rust-backend/src/error.rs` is the common HTTP/error mapping point. Existing backend tests live next to their modules and in `main.rs`.
 
-Key design decisions
-- Product brand/name comes from the issue: render the visible lockup as `ideavibes blog`.
-- Keep the hosted logo URL and dimensions intact; add the wordmark as sibling text inside the existing brand anchor so the whole lockup remains a single link target.
-- Update image `alt` to `ideavibes blog` and surrounding link `aria-label` to match the new lockup. If both the image alt and adjacent visible text are present, verify the resulting accessible name is acceptable in tests and markup.
-- Match the current editorial ink/weight/size with local Tailwind classes rather than introducing custom CSS.
-- Validate with `npm run backend:test` or `cargo test --manifest-path rust-backend/Cargo.toml`; broader E2E coverage is not required for this narrow template/test update.
+## Issue #238 — apply migrations before serving traffic
+
+1. Enable SQLx's migration support and add a database migration runner in `db.rs` (or a narrowly scoped `migrations` module) that embeds the ordered `prisma/migrations/` directory at compile time.
+2. From `main.rs`, construct the pool, run the migration runner, log start/success with the migration context, and propagate failures before storage/router/listener setup. This makes startup fail fast and ensures no HTTP traffic is accepted against an outdated schema.
+3. Use the migration ledger and transaction/error behavior supplied by SQLx so successful migrations are recorded and subsequent starts are idempotent. Confirm the relative migration path works from the Rust crate in both development and release builds.
+4. Account for the existing Prisma-originated schema when choosing the runner: do not blindly reapply baseline `CREATE TABLE`/enum migrations to an already provisioned database. The implementation should use the established migration history/compatibility strategy needed to adopt the existing database, while applying missing later migrations (including the post columns named in the issue) in order.
+5. Add focused tests for the migration boundary/embedded migration configuration where feasible; full migration execution remains an integration concern against PostgreSQL. Keep `scripts/start-sprite.sh` as a simple binary launcher unless the chosen migration mechanism requires a separate command.
+
+## Issue #239 — database-aware health endpoint
+
+1. Add a lightweight shared `db::check_connectivity(&DbPool)` function that executes `SELECT 1` (rather than relying on lazy-pool construction).
+2. Change `main.rs`'s `/health` handler to await that check. Return the existing `{"status":"ok"}` JSON only on success; log the underlying SQLx failure and return a clear, non-success readiness response (prefer a 503/service-unavailable error rather than a false 200).
+3. Extend `AppError` only as needed for the explicit safe public health failure response, without exposing database credentials or raw driver errors. Other DB-backed routes retain their existing error behavior.
+4. Test the handler branches through a small injectable/checkable DB boundary or controlled test pool: a successful query must produce 200/`ok`, and a failed/unreachable query must produce the chosen non-OK status and clear message.
+
+## Dependencies and decisions
+
+- Implement #238 first. Once startup runs migrations eagerly, normal deployments cannot begin serving before the database is schema-compatible; #239 then verifies ongoing runtime reachability/readiness.
+- Both issues share `db.rs`; keep migrations and one-query health checking separate functions so health never re-runs migrations and request latency stays minimal.
+- The app uses direct Axum SSR and has no external revalidation dependency. Neither issue changes public origin/proxy handling, templates, routes other than `/health`, object storage, or application branding.
+- Use the prebuilt plain-Rust Cargo workflow (`cargo build`/`cargo test`); this is an Axum server, not a Leptos/WASM app.
