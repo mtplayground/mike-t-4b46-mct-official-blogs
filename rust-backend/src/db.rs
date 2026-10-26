@@ -75,10 +75,11 @@ pub fn connect(database_url: &str) -> Result<DbPool, sqlx::Error> {
     let options = PgConnectOptions::from_str(database_url)?;
 
     Ok(PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(3)
+        .min_connections(0)
         .acquire_timeout(Duration::from_secs(30))
-        .idle_timeout(Duration::from_secs(300))
-        .max_lifetime(Duration::from_secs(1800))
+        .idle_timeout(Duration::from_secs(90))
+        .max_lifetime(Duration::from_secs(600))
         .connect_lazy_with(options))
 }
 
